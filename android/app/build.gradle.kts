@@ -8,7 +8,9 @@ plugins {
 android {
     namespace = "com.tsuketori.tsuketori"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // shared_preferences_android など一部プラグインが要求する NDK に合わせる
+    // （NDK は後方互換のため、依存が求める最も高いバージョンを指定する）。
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
