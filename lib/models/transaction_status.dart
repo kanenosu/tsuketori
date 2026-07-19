@@ -21,7 +21,7 @@ enum TransactionStatus {
   String get label {
     switch (this) {
       case TransactionStatus.unpaid:
-        return '未返済';
+        return '返済待ち';
       case TransactionStatus.partial:
         return '一部返済';
       case TransactionStatus.settled:

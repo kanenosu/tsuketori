@@ -5,12 +5,13 @@ import 'package:provider/provider.dart';
 import '../../models/person.dart';
 import '../../models/transaction_type.dart';
 import '../../state/app_state.dart';
-import '../../widgets/type_selector.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/person_avatar_row.dart';
+import '../../widgets/type_segment.dart';
 import '../person/person_select_screen.dart';
 import 'transaction_detail_screen.dart';
 
-/// 新規取引登録画面（要件 6.2）。
+/// 新規取引登録画面（要件 6.2・モックアップ準拠）。
 class NewTransactionScreen extends StatefulWidget {
   const NewTransactionScreen({super.key});
 
@@ -33,7 +34,6 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   @override
   void initState() {
     super.initState();
-    // 直前に選択した種別を保持（要件 6.2.1）。
     _type = context.read<AppState>().lastUsedType;
   }
 
@@ -43,6 +43,9 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     _memoController.dispose();
     super.dispose();
   }
+
+  Color get _accent =>
+      _type == TransactionType.lend ? AppColors.lend : AppColors.borrow;
 
   int? get _amount {
     final digits = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -115,7 +118,6 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
             : _memoController.text.trim(),
       );
       if (!mounted) return;
-      // 登録完了後は取引詳細へ遷移（要件 6.2.7）。
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => TransactionDetailScreen(transactionId: tx.id),
@@ -133,73 +135,138 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('新規取引')),
+      appBar: AppBar(
+        leadingWidth: 88,
+        leading: TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('キャンセル'),
+        ),
+        title: const Text('新しい取引'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () {},
+          ),
+        ],
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          TypeSelector(
+          TypeSegment(
             value: _type,
             onChanged: (v) => setState(() => _type = v),
           ),
           const SizedBox(height: 24),
           _label('相手'),
-          _PersonField(
-            person: _person,
+          _FieldCard(
             error: _personError,
-            onTap: _pickPerson,
-          ),
-          const SizedBox(height: 20),
-          _label('金額'),
-          TextField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-            decoration: InputDecoration(
-              hintText: '0',
-              prefixText: '¥ ',
-              prefixStyle: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: _pickPerson,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Row(
+                  children: [
+                    if (_person != null)
+                      PersonAvatarRow(person: _person!)
+                    else
+                      Text(
+                        '相手を選択',
+                        style: TextStyle(color: Theme.of(context).hintColor),
+                      ),
+                    const Spacer(),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
               ),
-              errorText: _amountError,
             ),
-            onChanged: (_) {
-              if (_amountError != null) setState(() => _amountError = null);
-            },
           ),
-          const SizedBox(height: 20),
-          _label('取引日'),
-          _DateField(
-            label: _formatDate(_date),
-            icon: Icons.calendar_today,
-            onTap: _pickDate,
+          const SizedBox(height: 18),
+          _label('金額'),
+          _FieldCard(
+            error: _amountError,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                ),
+                decoration: const InputDecoration(
+                  hintText: '0',
+                  prefixText: '¥ ',
+                  prefixStyle: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  border: InputBorder.none,
+                  filled: false,
+                  contentPadding: EdgeInsets.symmetric(vertical: 12),
+                ),
+                onChanged: (_) {
+                  if (_amountError != null) {
+                    setState(() => _amountError = null);
+                  }
+                },
+              ),
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
+          _label('日付'),
+          _FieldCard(
+            child: _tappable(
+              _formatDate(_date),
+              Icons.calendar_today_outlined,
+              _pickDate,
+            ),
+          ),
+          const SizedBox(height: 18),
           _label('返済期限（任意）'),
           _DueDatePicker(
             dueDate: _dueDate,
             baseDate: _date,
+            accent: _accent,
             onSelected: (d) => setState(() => _dueDate = d),
             onPickDate: _pickDueDate,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           _label('メモ（任意）'),
-          TextField(
-            controller: _memoController,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              hintText: 'ランチ代・旅行のホテル代 など',
+          _FieldCard(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _memoController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: _type == TransactionType.lend
+                      ? '例）ランチ代を立て替えた'
+                      : '例）飲み会の前払い',
+                  border: InputBorder.none,
+                  filled: false,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 28),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _accent),
             onPressed: _saving ? null : _save,
             child: _saving
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Text('保存する'),
           ),
@@ -216,20 +283,31 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     ),
   );
 
+  Widget _tappable(String label, IconData icon, VoidCallback onTap) => InkWell(
+    borderRadius: BorderRadius.circular(14),
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).hintColor),
+          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(fontSize: 15)),
+        ],
+      ),
+    ),
+  );
+
   static String _formatDate(DateTime d) =>
       '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
 }
 
-class _PersonField extends StatelessWidget {
-  const _PersonField({
-    required this.person,
-    required this.error,
-    required this.onTap,
-  });
+/// フィールドを囲む白いカード（エラー表示付き）。
+class _FieldCard extends StatelessWidget {
+  const _FieldCard({required this.child, this.error});
 
-  final Person? person;
+  final Widget child;
   final String? error;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -237,28 +315,9 @@ class _PersonField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Material(
-          color: Theme.of(context).inputDecorationTheme.fillColor,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  if (person != null)
-                    PersonAvatarRow(person: person!)
-                  else
-                    Text(
-                      '相手を選択',
-                      style: TextStyle(color: Theme.of(context).hintColor),
-                    ),
-                  const Spacer(),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
-            ),
-          ),
+          child: child,
         ),
         if (error != null)
           Padding(
@@ -276,51 +335,19 @@ class _PersonField extends StatelessWidget {
   }
 }
 
-class _DateField extends StatelessWidget {
-  const _DateField({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).inputDecorationTheme.fillColor,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              Icon(icon, size: 20),
-              const SizedBox(width: 12),
-              Text(label, style: const TextStyle(fontSize: 15)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// 返済期限の選択（期限なし／1週間後／1か月後／日付指定・要件 6.2.5）。
 class _DueDatePicker extends StatelessWidget {
   const _DueDatePicker({
     required this.dueDate,
     required this.baseDate,
+    required this.accent,
     required this.onSelected,
     required this.onPickDate,
   });
 
   final DateTime? dueDate;
   final DateTime baseDate;
+  final Color accent;
   final ValueChanged<DateTime?> onSelected;
   final VoidCallback onPickDate;
 
@@ -331,6 +358,10 @@ class _DueDatePicker extends StatelessWidget {
 
     bool sameDay(DateTime? a, DateTime b) =>
         a != null && a.year == b.year && a.month == b.month && a.day == b.day;
+
+    final isCustom = dueDate != null &&
+        !sameDay(dueDate, week) &&
+        !sameDay(dueDate, month);
 
     return Wrap(
       spacing: 8,
@@ -352,9 +383,9 @@ class _DueDatePicker extends StatelessWidget {
           onSelected: (_) => onSelected(month),
         ),
         ActionChip(
-          avatar: const Icon(Icons.calendar_today, size: 16),
+          avatar: Icon(Icons.calendar_today, size: 16, color: accent),
           label: Text(
-            dueDate != null && !sameDay(dueDate, week) && !sameDay(dueDate, month)
+            isCustom
                 ? '${dueDate!.year}/${dueDate!.month}/${dueDate!.day}'
                 : '日付指定',
           ),

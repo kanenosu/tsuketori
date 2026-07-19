@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/repayment.dart';
+import '../../models/transaction_type.dart';
 import '../../state/app_state.dart';
 import '../../theme/status_style.dart';
 import '../../utils/formatters.dart';
-import '../../widgets/person_avatar_row.dart';
+import '../../widgets/person_avatar.dart';
 import '../../widgets/status_badge.dart';
 import '../repayment/repayment_screen.dart';
 import 'edit_transaction_screen.dart';
 
-/// 取引詳細画面（要件 6.3）。
+/// 取引詳細画面（要件 6.3・モックアップ④準拠）。
 class TransactionDetailScreen extends StatelessWidget {
   const TransactionDetailScreen({super.key, required this.transactionId});
 
@@ -22,9 +23,8 @@ class TransactionDetailScreen extends StatelessWidget {
     final tx = appState.transaction(transactionId);
 
     if (tx == null) {
-      // 削除済みなど。
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(title: const Text('取引の詳細')),
         body: const Center(child: Text('取引が見つかりません')),
       );
     }
@@ -34,105 +34,129 @@ class TransactionDetailScreen extends StatelessWidget {
     final status = tx.effectiveStatus();
     final repayments = appState.repaymentsForTransaction(tx.id);
     final canRepay = tx.isOutstanding;
+    final isLend = tx.type == TransactionType.lend;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('取引詳細'),
+        title: const Text('取引の詳細'),
+        centerTitle: true,
         actions: [
-          IconButton(
-            tooltip: '編集',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => EditTransactionScreen(transactionId: tx.id),
-                ),
-              );
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_horiz),
+            onSelected: (v) {
+              if (v == 'edit') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => EditTransactionScreen(transactionId: tx.id),
+                  ),
+                );
+              } else if (v == 'delete') {
+                _confirmDelete(context, appState);
+              }
             },
-          ),
-          IconButton(
-            tooltip: '削除',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => _confirmDelete(context, appState),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('編集する')),
+              PopupMenuItem(value: 'delete', child: Text('削除する')),
+            ],
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          // ヘッダー：円形アイコン＋種別＋金額＋相手（中央寄せ）。
+          Column(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: typeColor.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isLend ? Icons.arrow_upward : Icons.arrow_downward,
+                  color: typeColor,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                tx.type.label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: typeColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${isLend ? '+' : '-'}${Formatters.yenSuffix(tx.amount)}',
+                style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  color: typeColor,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: typeColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          tx.type.label,
-                          style: TextStyle(
-                            color: typeColor,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      StatusBadge(status: status),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  PersonAvatar(person: person, radius: 16),
+                  const SizedBox(width: 8),
                   Text(
-                    Formatters.yenSuffix(tx.amount),
-                    style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w800,
-                      color: typeColor,
+                    person?.name ?? '(不明な相手)',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  if (tx.repaidAmount > 0 || canRepay) ...[
-                    const SizedBox(height: 4),
+                ],
+              ),
+            ],
+          ),
+          if (tx.repaidAmount > 0 && canRepay) ...[
+            const SizedBox(height: 20),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
                       '残額 ${Formatters.yenSuffix(tx.remainingAmount)}'
                       '（返済済み ${Formatters.yenSuffix(tx.repaidAmount)}）',
                       style: TextStyle(color: Theme.of(context).hintColor),
                     ),
-                    const SizedBox(height: 12),
-                    _ProgressBar(
-                      ratio: tx.amount == 0
-                          ? 0
-                          : tx.repaidAmount / tx.amount,
-                      color: typeColor,
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: tx.amount == 0
+                            ? 0
+                            : (tx.repaidAmount / tx.amount).clamp(0.0, 1.0),
+                        minHeight: 8,
+                        backgroundColor: typeColor.withValues(alpha: 0.12),
+                        valueColor: AlwaysStoppedAnimation(typeColor),
+                      ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+          ],
+          const SizedBox(height: 24),
           Card(
             child: Column(
               children: [
-                _infoRow(context, '相手', trailing: person == null
-                    ? null
-                    : PersonAvatarRow(person: person)),
-                const Divider(height: 1),
-                _infoRow(context, '取引日', value: Formatters.date(tx.date)),
+                _infoRow(context, '日付', value: Formatters.longDate(tx.date)),
                 const Divider(height: 1),
                 _infoRow(
                   context,
-                  '返済期限',
+                  '返済予定日',
                   value: tx.dueDate == null
-                      ? 'なし'
-                      : Formatters.date(tx.dueDate!),
+                      ? '未設定'
+                      : Formatters.longDate(tx.dueDate!),
                   valueColor: tx.isOverdue()
                       ? StatusStyle.statusColor(status)
                       : null,
@@ -142,70 +166,168 @@ class TransactionDetailScreen extends StatelessWidget {
                   _infoRow(context, 'メモ', value: tx.memo!),
                 ],
                 const Divider(height: 1),
-                _infoRow(
-                  context,
-                  '作成日時',
-                  value: Formatters.dateTime(tx.createdAt),
-                ),
-                const Divider(height: 1),
-                _infoRow(
-                  context,
-                  '更新日時',
-                  value: Formatters.dateTime(tx.updatedAt),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 84,
+                        child: Text(
+                          'ステータス',
+                          style: TextStyle(
+                            color: Theme.of(context).hintColor,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      StatusBadge(status: status),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Text(
-                '返済履歴',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${repayments.length}件',
-                style: TextStyle(color: Theme.of(context).hintColor),
-              ),
-            ],
+          const SizedBox(height: 12),
+          Text(
+            '作成 ${Formatters.dateTime(tx.createdAt)}'
+            '  ／  更新 ${Formatters.dateTime(tx.updatedAt)}',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor),
           ),
-          const SizedBox(height: 8),
-          if (repayments.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                'まだ返済の記録はありません',
-                style: TextStyle(color: Theme.of(context).hintColor),
-              ),
-            )
-          else
+          if (repayments.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                const Text(
+                  '返済履歴',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+                const Spacer(),
+                Text(
+                  '${repayments.length}件',
+                  style: TextStyle(color: Theme.of(context).hintColor),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             ...repayments.map((r) => _RepaymentTile(
                   repayment: r,
                   onDelete: () => appState.deleteRepayment(r.id),
                 )),
+          ],
         ],
       ),
-      bottomNavigationBar: canRepay
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: FilledButton.icon(
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: canRepay
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  EditTransactionScreen(transactionId: tx.id),
+                            ),
+                          );
+                        },
+                        child: const Text('編集する'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: typeColor,
+                        ),
+                        onPressed: () =>
+                            _showRepayMenu(context, appState, tx.id),
+                        child: const Text('返済を記録する'),
+                      ),
+                    ),
+                  ],
+                )
+              : OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => RepaymentScreen(transactionId: tx.id),
+                        builder: (_) =>
+                            EditTransactionScreen(transactionId: tx.id),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.payments_outlined),
-                  label: const Text('返済を記録する'),
+                  child: const Text('編集する'),
                 ),
-              ),
-            )
-          : null,
+        ),
+      ),
+    );
+  }
+
+  /// 返済の記録方法を選ぶ（全額＝返済済みにする／一部返済）。
+  Future<void> _showRepayMenu(
+    BuildContext context,
+    AppState appState,
+    String txId,
+  ) async {
+    final tx = appState.transaction(txId);
+    if (tx == null) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.done_all, color: Colors.green),
+              title: const Text('返済済みにする'),
+              subtitle: Text('残額 ${Formatters.yenSuffix(tx.remainingAmount)} を全額返済'),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                await appState.addRepayment(
+                  transactionId: txId,
+                  amount: tx.remainingAmount,
+                  date: DateTime.now(),
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('返済済みにしました')),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.payments_outlined),
+              title: const Text('一部返済を記録する'),
+              subtitle: const Text('金額・返済方法・日付を指定'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => RepaymentScreen(transactionId: txId),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -239,8 +361,7 @@ class TransactionDetailScreen extends StatelessWidget {
   Widget _infoRow(
     BuildContext context,
     String label, {
-    String? value,
-    Widget? trailing,
+    required String value,
     Color? valueColor,
   }) {
     return Padding(
@@ -249,7 +370,7 @@ class TransactionDetailScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 76,
+            width: 84,
             child: Text(
               label,
               style: TextStyle(
@@ -259,37 +380,16 @@ class TransactionDetailScreen extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: trailing ??
-                Text(
-                  value ?? '',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: valueColor,
-                  ),
-                ),
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: valueColor,
+              ),
+            ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.ratio, required this.color});
-
-  final double ratio;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
-      child: LinearProgressIndicator(
-        value: ratio.clamp(0.0, 1.0),
-        minHeight: 8,
-        backgroundColor: color.withValues(alpha: 0.12),
-        valueColor: AlwaysStoppedAnimation(color),
       ),
     );
   }
@@ -314,6 +414,7 @@ class _RepaymentTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: const CircleAvatar(
+          backgroundColor: Color(0x1A16A34A),
           child: Icon(Icons.check, color: Colors.green),
         ),
         title: Text(

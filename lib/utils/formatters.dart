@@ -25,7 +25,9 @@ class Formatters {
   static final DateFormat _date = DateFormat('yyyy/MM/dd', 'ja_JP');
   static final DateFormat _dateShort = DateFormat('MM/dd', 'ja_JP');
   static final DateFormat _month = DateFormat('yyyy年MM月', 'ja_JP');
+  static final DateFormat _monthLabel = DateFormat('yyyy年M月', 'ja_JP');
   static final DateFormat _dateTime = DateFormat('yyyy/MM/dd HH:mm', 'ja_JP');
+  static final DateFormat _longDate = DateFormat('yyyy年M月d日（E）', 'ja_JP');
 
   static String date(DateTime d) => _date.format(d);
 
@@ -33,5 +35,31 @@ class Formatters {
 
   static String month(DateTime d) => _month.format(d);
 
+  /// 「2024年5月」形式（月ナビゲーション用）。
+  static String monthLabel(DateTime d) => _monthLabel.format(d);
+
   static String dateTime(DateTime d) => _dateTime.format(d);
+
+  /// 「2024年5月9日（木）」形式。
+  static String longDate(DateTime d) => _longDate.format(d);
+
+  /// 「今日」「昨日」「N日前」「N週間前」などの相対表記。
+  static String relative(DateTime d, {DateTime? now}) {
+    final current = now ?? DateTime.now();
+    final day = DateTime(d.year, d.month, d.day);
+    final today = DateTime(current.year, current.month, current.day);
+    final diff = today.difference(day).inDays;
+
+    if (diff == 0) return '今日';
+    if (diff == 1) return '昨日';
+    if (diff < 0) {
+      // 未来日付。
+      if (diff == -1) return '明日';
+      return dateShort(d);
+    }
+    if (diff < 7) return '$diff日前';
+    if (diff < 30) return '${diff ~/ 7}週間前';
+    if (diff < 365) return '${diff ~/ 30}か月前';
+    return date(d);
+  }
 }

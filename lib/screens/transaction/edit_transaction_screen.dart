@@ -7,7 +7,7 @@ import '../../models/transaction_type.dart';
 import '../../state/app_state.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/person_avatar_row.dart';
-import '../../widgets/type_selector.dart';
+import '../../widgets/type_segment.dart';
 import '../person/person_select_screen.dart';
 
 /// 取引編集画面（要件 6.3.2）。
@@ -138,7 +138,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          TypeSelector(
+          TypeSegment(
             value: _type,
             onChanged: (v) => setState(() => _type = v),
           ),

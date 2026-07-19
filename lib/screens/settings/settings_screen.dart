@@ -3,71 +3,81 @@ import 'package:provider/provider.dart';
 
 import '../../state/settings_state.dart';
 
-/// 設定画面（要件 6.9）。
-/// MVP ではテーマ設定を実装し、その他の項目は今後対応として一覧化する。
+/// 設定画面（要件 6.9・モックアップ⑨準拠）。
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
+
+  String _themeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'ライトモード';
+      case ThemeMode.dark:
+        return 'ダークモード';
+      case ThemeMode.system:
+        return '端末に合わせる';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsState>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('設定')),
+      appBar: AppBar(title: const Text('設定'), centerTitle: true),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          _sectionHeader(context, '表示'),
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                RadioListTile<ThemeMode>(
-                  value: ThemeMode.system,
-                  groupValue: settings.themeMode,
-                  onChanged: (m) => settings.setThemeMode(m!),
-                  title: const Text('端末設定に合わせる'),
-                  secondary: const Icon(Icons.brightness_auto),
-                ),
-                const Divider(height: 1),
-                RadioListTile<ThemeMode>(
-                  value: ThemeMode.light,
-                  groupValue: settings.themeMode,
-                  onChanged: (m) => settings.setThemeMode(m!),
-                  title: const Text('ライト'),
-                  secondary: const Icon(Icons.light_mode),
-                ),
-                const Divider(height: 1),
-                RadioListTile<ThemeMode>(
-                  value: ThemeMode.dark,
-                  groupValue: settings.themeMode,
-                  onChanged: (m) => settings.setThemeMode(m!),
-                  title: const Text('ダーク'),
-                  secondary: const Icon(Icons.dark_mode),
-                ),
-              ],
+          _group(context, [
+            _Row(
+              icon: Icons.attach_money,
+              title: '通貨の設定',
+              trailing: '円（¥）',
+              onTap: () => _comingSoon(context, '通貨の設定'),
             ),
-          ),
-          _sectionHeader(context, '今後対応予定'),
-          _comingSoonGroup(context, const [
-            (Icons.notifications_outlined, '通知設定'),
-            (Icons.attach_money, '通貨設定'),
-            (Icons.lock_outline, 'パスコードロック'),
-            (Icons.fingerprint, '生体認証'),
-            (Icons.backup_outlined, 'データのバックアップ'),
-            (Icons.restore, 'データの復元'),
+            _Row(
+              icon: Icons.backup_outlined,
+              title: 'データのバックアップ',
+              onTap: () => _comingSoon(context, 'データのバックアップ'),
+            ),
+            _Row(
+              icon: Icons.restore,
+              title: 'データの復元',
+              onTap: () => _comingSoon(context, 'データの復元'),
+            ),
           ]),
-          _sectionHeader(context, 'アプリについて'),
-          _comingSoonGroup(context, const [
-            (Icons.description_outlined, '利用規約'),
-            (Icons.privacy_tip_outlined, 'プライバシーポリシー'),
-            (Icons.mail_outline, 'お問い合わせ'),
+          const SizedBox(height: 16),
+          _group(context, [
+            _Row(
+              icon: Icons.palette_outlined,
+              title: 'テーマ設定',
+              trailing: _themeLabel(settings.themeMode),
+              onTap: () => _pickTheme(context, settings),
+            ),
+            _Row(
+              icon: Icons.lock_outline,
+              title: 'パスコードロック',
+              trailing: 'オフ',
+              onTap: () => _comingSoon(context, 'パスコードロック'),
+            ),
+          ]),
+          const SizedBox(height: 16),
+          _group(context, [
+            _Row(
+              icon: Icons.mail_outline,
+              title: 'サポート・お問い合わせ',
+              onTap: () => _comingSoon(context, 'サポート・お問い合わせ'),
+            ),
+            _Row(
+              icon: Icons.info_outline,
+              title: 'このアプリについて',
+              onTap: () => _showAbout(context),
+            ),
           ]),
           const Padding(
             padding: EdgeInsets.all(16),
             child: Center(
               child: Text(
-                'ツケトリ  version 1.0.0 (MVP)',
+                '貸し借り管理アプリ  version 1.0.0',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ),
@@ -77,44 +87,100 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _sectionHeader(BuildContext context, String text) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-    child: Text(
-      text,
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        color: Theme.of(context).hintColor,
-      ),
-    ),
-  );
-
-  Widget _comingSoonGroup(
-    BuildContext context,
-    List<(IconData, String)> items,
-  ) {
+  Widget _group(BuildContext context, List<_Row> rows) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          for (var i = 0; i < items.length; i++) ...[
-            if (i > 0) const Divider(height: 1),
-            ListTile(
-              leading: Icon(items[i].$1),
-              title: Text(items[i].$2),
-              trailing: const Text(
-                '準備中',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('「${items[i].$2}」は今後対応予定です')),
-                );
-              },
-            ),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const Divider(height: 1, indent: 56),
+            rows[i],
           ],
         ],
       ),
+    );
+  }
+
+  Future<void> _pickTheme(BuildContext context, SettingsState settings) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final mode in ThemeMode.values)
+              RadioListTile<ThemeMode>(
+                value: mode,
+                groupValue: settings.themeMode,
+                onChanged: (m) {
+                  settings.setThemeMode(m!);
+                  Navigator.of(ctx).pop();
+                },
+                title: Text(_themeLabel(mode)),
+                secondary: Icon(switch (mode) {
+                  ThemeMode.light => Icons.light_mode,
+                  ThemeMode.dark => Icons.dark_mode,
+                  ThemeMode.system => Icons.brightness_auto,
+                }),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _comingSoon(BuildContext context, String label) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('「$label」は今後対応予定です')),
+    );
+  }
+
+  void _showAbout(BuildContext context) {
+    showAboutDialog(
+      context: context,
+      applicationName: '貸し借り管理アプリ',
+      applicationVersion: '1.0.0 (MVP)',
+      children: const [
+        Text('お金の貸し借りを、シンプルに、すぐに記録できるアプリです。'),
+      ],
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  const _Row({
+    required this.icon,
+    required this.title,
+    this.trailing,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? trailing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (trailing != null)
+            Text(
+              trailing!,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).hintColor,
+              ),
+            ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+        ],
+      ),
+      onTap: onTap,
     );
   }
 }
