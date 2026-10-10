@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import '../../widgets/ledger_header.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/app_state.dart';
@@ -19,22 +21,32 @@ class PersonListScreen extends StatefulWidget {
 
 class _PersonListScreenState extends State<PersonListScreen> {
   String _query = '';
+  bool _showHidden = false;
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final query = _query.trim();
-    final people = appState.people
-        .where((p) => query.isEmpty || p.name.contains(query))
-        .toList();
+    final people =
+        (_showHidden
+                ? appState.allPeople.where((p) => p.isHidden)
+                : appState.people)
+            .where((p) => query.isEmpty || p.name.contains(query))
+            .toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('人'),
-        centerTitle: true,
+      appBar: LedgerHeader(
+        title: _showHidden ? '非表示の相手' : '人',
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            tooltip: _showHidden ? '表示中の相手' : '非表示の相手',
+            icon: Icon(
+              _showHidden ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+            ),
+            onPressed: () => setState(() => _showHidden = !_showHidden),
+          ),
+          IconButton(
+            icon: const Icon(CupertinoIcons.add),
             tooltip: '相手を追加',
             onPressed: () {
               Navigator.of(context).push(
@@ -47,54 +59,54 @@ class _PersonListScreenState extends State<PersonListScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
             child: TextField(
               decoration: const InputDecoration(
                 hintText: '名前で検索',
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(CupertinoIcons.search),
               ),
               onChanged: (v) => setState(() => _query = v),
             ),
           ),
           Expanded(
-            child: people.isEmpty
-                ? const EmptyState(
-                    icon: Icons.people_outline,
-                    title: '相手が登録されていません',
-                    message: '右上の＋から相手を追加できます。',
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-                    children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          child: Column(
-                            children: [
-                              for (var i = 0; i < people.length; i++) ...[
-                                if (i > 0) const Divider(height: 1),
-                                _PersonRow(personId: people[i].id),
+            child:
+                people.isEmpty
+                    ? EmptyState(
+                      icon: Icons.people_outline,
+                      title:
+                          query.isNotEmpty
+                              ? '該当する相手がいません'
+                              : (_showHidden ? '非表示の相手はいません' : '相手が登録されていません'),
+                      message:
+                          query.isNotEmpty
+                              ? '名前を変えて検索してください。'
+                              : (_showHidden
+                                  ? '相手を非表示にするとここに表示されます。'
+                                  : '右上の＋から相手を追加できます。'),
+                    )
+                    : ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                      children: [
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            child: Column(
+                              children: [
+                                for (var i = 0; i < people.length; i++) ...[
+                                  if (i > 0) const Divider(height: 1),
+                                  _PersonRow(personId: people[i].id),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'person_fab',
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const PersonEditScreen()),
-          );
-        },
-        child: const Icon(Icons.person_add),
       ),
     );
   }
@@ -135,11 +147,12 @@ class _PersonRow extends StatelessWidget {
                     person.name,
                     style: const TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Row(
+                  Wrap(
+                    spacing: 12,
                     children: [
                       _amountLabel(
                         '貸した',
@@ -147,7 +160,6 @@ class _PersonRow extends StatelessWidget {
                         AppColors.lend,
                         positive: true,
                       ),
-                      const SizedBox(width: 12),
                       _amountLabel(
                         '借りた',
                         balance.borrowedOutstanding,
@@ -184,7 +196,7 @@ class _PersonRow extends StatelessWidget {
             text: '$sign${Formatters.yenSuffix(amount)}',
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w500,
               color: amount == 0 ? Colors.grey : color,
             ),
           ),

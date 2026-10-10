@@ -22,10 +22,12 @@ class SettingsState extends ChangeNotifier {
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    if (!await _prefs!.setString(_themeModeKey, mode.name)) {
+      throw StateError('テーマを保存できませんでした');
+    }
     _themeMode = mode;
     notifyListeners();
-    _prefs ??= await SharedPreferences.getInstance();
-    await _prefs!.setString(_themeModeKey, mode.name);
   }
 
   ThemeMode _decode(String? raw) {

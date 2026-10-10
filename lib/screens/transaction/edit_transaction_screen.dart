@@ -31,6 +31,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   String? _amountError;
   bool _initialized = false;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -96,6 +97,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final amount = _amount;
     if (amount == null || amount <= 0) {
       setState(() => _amountError = '1円以上の金額を入力してください');
@@ -111,17 +113,32 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     }
     if (_person == null) return;
 
-    await context.read<AppState>().updateTransaction(
-      widget.transactionId,
-      personId: _person!.id,
-      type: _type,
-      amount: amount,
-      date: _date,
-      dueDate: _dueDate,
-      clearDueDate: _dueDate == null,
-      memo: _memoController.text.trim(),
-    );
-    if (mounted) Navigator.of(context).pop();
+    setState(() => _saving = true);
+    try {
+      await context.read<AppState>().updateTransaction(
+        widget.transactionId,
+        personId: _person!.id,
+        type: _type,
+        amount: amount,
+        date: _date,
+        dueDate: _dueDate,
+        clearDueDate: _dueDate == null,
+        memo: _memoController.text.trim(),
+      );
+      if (mounted) Navigator.of(context).pop();
+    } on ArgumentError catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _amountError = e.message.toString();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('保存できませんでした。もう一度お試しください')));
+    }
   }
 
   @override
@@ -174,7 +191,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             controller: _amountController,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               prefixText: '¥ ',
               errorText: _amountError,
@@ -212,7 +229,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             decoration: const InputDecoration(hintText: 'メモ（任意）'),
           ),
           const SizedBox(height: 28),
-          FilledButton(onPressed: _save, child: const Text('保存する')),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: const Text('保存する'),
+          ),
         ],
       ),
     );

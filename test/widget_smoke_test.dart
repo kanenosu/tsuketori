@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsuketori/main.dart';
@@ -11,9 +11,7 @@ Future<void> pumpApp(WidgetTester tester) async {
   final settings = SettingsState();
   final appState = AppState(repository: AppRepository());
   await Future.wait([settings.load(), appState.load()]);
-  await tester.pumpWidget(
-    TsuketoriApp(settings: settings, appState: appState),
-  );
+  await tester.pumpWidget(TsuketoriApp(settings: settings, appState: appState));
   await tester.pumpAndSettle();
 }
 
@@ -22,7 +20,7 @@ void main() {
     await pumpApp(tester);
 
     expect(find.text('貸し借り'), findsOneWidget);
-    expect(find.text('あなたの残高'), findsOneWidget);
+    expect(find.text('貸し借りの差額'), findsOneWidget);
     expect(find.text('取引がまだありません'), findsOneWidget);
     // 下部タブ。
     expect(find.text('ホーム'), findsWidgets);
@@ -34,7 +32,7 @@ void main() {
   testWidgets('＋ボタンから新規取引画面へ遷移できる', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.widgetWithIcon(FloatingActionButton, Icons.add));
+    await tester.tap(find.byTooltip('取引を追加'));
     await tester.pumpAndSettle();
 
     expect(find.text('新しい取引'), findsOneWidget);
@@ -51,7 +49,7 @@ void main() {
   testWidgets('相手・金額未入力の保存でバリデーションエラーが出る', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.widgetWithIcon(FloatingActionButton, Icons.add));
+    await tester.tap(find.byTooltip('取引を追加'));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
@@ -69,7 +67,7 @@ void main() {
   testWidgets('設定タブでテーマ設定を変更できる', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.byIcon(CupertinoIcons.gear));
     await tester.pumpAndSettle();
 
     expect(find.text('テーマ設定'), findsOneWidget);

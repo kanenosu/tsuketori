@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../models/person.dart';
 import '../../models/transaction_type.dart';
 import '../../state/app_state.dart';
-import '../../theme/app_colors.dart';
 import '../../widgets/person_avatar_row.dart';
 import '../../widgets/type_segment.dart';
 import '../person/person_select_screen.dart';
@@ -44,8 +43,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     super.dispose();
   }
 
-  Color get _accent =>
-      _type == TransactionType.lend ? AppColors.lend : AppColors.borrow;
+  Color get _accent => Theme.of(context).colorScheme.primary;
 
   int? get _amount {
     final digits = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -113,9 +111,10 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
         amount: _amount!,
         date: _date,
         dueDate: _dueDate,
-        memo: _memoController.text.trim().isEmpty
-            ? null
-            : _memoController.text.trim(),
+        memo:
+            _memoController.text.trim().isEmpty
+                ? null
+                : _memoController.text.trim(),
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -126,9 +125,9 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('保存できませんでした。もう一度お試しください')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('保存できませんでした。もう一度お試しください')));
     }
   }
 
@@ -136,19 +135,13 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leadingWidth: 88,
+        leadingWidth: 108,
         leading: TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('キャンセル'),
         ),
         title: const Text('新しい取引'),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -197,7 +190,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: const TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
                 decoration: const InputDecoration(
                   hintText: '0',
@@ -245,9 +238,10 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                 controller: _memoController,
                 maxLines: 2,
                 decoration: InputDecoration(
-                  hintText: _type == TransactionType.lend
-                      ? '例）ランチ代を立て替えた'
-                      : '例）飲み会の前払い',
+                  hintText:
+                      _type == TransactionType.lend
+                          ? '例）ランチ代を立て替えた'
+                          : '例）飲み会の前払い',
                   border: InputBorder.none,
                   filled: false,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -259,16 +253,17 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: _accent),
             onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('保存する'),
+            child:
+                _saving
+                    ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                    : const Text('保存する'),
           ),
         ],
       ),
@@ -354,14 +349,18 @@ class _DueDatePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final week = baseDate.add(const Duration(days: 7));
-    final month = DateTime(baseDate.year, baseDate.month + 1, baseDate.day);
+    final lastDay = DateTime(baseDate.year, baseDate.month + 2, 0).day;
+    final month = DateTime(
+      baseDate.year,
+      baseDate.month + 1,
+      baseDate.day.clamp(1, lastDay),
+    );
 
     bool sameDay(DateTime? a, DateTime b) =>
         a != null && a.year == b.year && a.month == b.month && a.day == b.day;
 
-    final isCustom = dueDate != null &&
-        !sameDay(dueDate, week) &&
-        !sameDay(dueDate, month);
+    final isCustom =
+        dueDate != null && !sameDay(dueDate, week) && !sameDay(dueDate, month);
 
     return Wrap(
       spacing: 8,

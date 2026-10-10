@@ -45,6 +45,7 @@ class _PersonEditScreenState extends State<PersonEditScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final name = _name.text.trim();
     if (name.isEmpty) {
       setState(() => _nameError = '名前を入力してください');
@@ -52,29 +53,37 @@ class _PersonEditScreenState extends State<PersonEditScreen> {
     }
     setState(() => _saving = true);
     final appState = context.read<AppState>();
-    final phone = _phone.text.trim().isEmpty ? null : _phone.text.trim();
-    final email = _email.text.trim().isEmpty ? null : _email.text.trim();
-    final memo = _memo.text.trim().isEmpty ? null : _memo.text.trim();
+    final phone = _phone.text.trim();
+    final email = _email.text.trim();
+    final memo = _memo.text.trim();
 
-    if (widget.isEditing) {
-      await appState.updatePerson(
-        widget.person!.id,
-        name: name,
-        phone: phone,
-        email: email,
-        memo: memo,
-      );
+    try {
+      if (widget.isEditing) {
+        await appState.updatePerson(
+          widget.person!.id,
+          name: name,
+          phone: phone,
+          email: email,
+          memo: memo,
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop(appState.person(widget.person!.id));
+      } else {
+        final created = await appState.addPerson(
+          name: name,
+          phone: phone,
+          email: email,
+          memo: memo,
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop(created);
+      }
+    } catch (_) {
       if (!mounted) return;
-      Navigator.of(context).pop(appState.person(widget.person!.id));
-    } else {
-      final created = await appState.addPerson(
-        name: name,
-        phone: phone,
-        email: email,
-        memo: memo,
-      );
-      if (!mounted) return;
-      Navigator.of(context).pop(created);
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('保存できませんでした。もう一度お試しください')));
     }
   }
 

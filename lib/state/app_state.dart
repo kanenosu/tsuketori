@@ -8,6 +8,7 @@ import '../models/transaction.dart';
 import '../models/transaction_status.dart';
 import '../models/transaction_type.dart';
 import '../repositories/app_repository.dart';
+import '../services/backup_codec.dart';
 
 /// アプリ全体の状態を保持し、取引・相手・返済の CRUD と集計を提供する。
 class AppState extends ChangeNotifier {
@@ -23,6 +24,26 @@ class AppState extends ChangeNotifier {
 
   bool _loaded = false;
   bool get isLoaded => _loaded;
+  int _revision = 0;
+  int get revision => _revision;
+
+  Future<Uint8List> exportBackup() async {
+    await _pending;
+    if (!_loaded) throw StateError('保存データを読み込めないため書き出せません');
+    return BackupCodec.encode(_snapshot());
+  }
+
+  Future<void> restoreBackup(
+    BackupArchive archive, {
+    required int expectedRevision,
+  }) => _mutate(() async {
+    if (_revision != expectedRevision) {
+      throw ArgumentError('確認中に台帳が変更されました。ファイルを選び直してください');
+    }
+    _restore(archive.data);
+    _loaded = true;
+    lastUsedType = TransactionType.lend;
+  });
 
   /// 直前に選んだ取引種別（要件 6.2.1：初期状態で保持してよい）。
   TransactionType lastUsedType = TransactionType.lend;
@@ -31,19 +52,16 @@ class AppState extends ChangeNotifier {
   // 読み込み
   // ---------------------------------------------------------------------------
 
-  Future<void> load() async {
-    final data = await _repository.load();
-    _people
-      ..clear()
-      ..addEntries(data.people.map((p) => MapEntry(p.id, p)));
-    _transactions
-      ..clear()
-      ..addEntries(data.transactions.map((t) => MapEntry(t.id, t)));
-    _repayments
-      ..clear()
-      ..addAll(data.repayments);
-    _loaded = true;
-    notifyListeners();
+  Future<void> load() {
+    final result = _pending.then((_) async {
+      final data = await _repository.load();
+      _restore(data);
+      _loaded = true;
+      _revision++;
+      notifyListeners();
+    });
+    _pending = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
   }
 
   // ---------------------------------------------------------------------------
@@ -123,11 +141,12 @@ class AppState extends ChangeNotifier {
     String? email,
     String? memo,
     String? iconPath,
-  }) async {
+  }) => _mutate(() async {
+    if (name.trim().isEmpty) throw ArgumentError('名前を入力してください');
     final now = DateTime.now();
     final person = Person(
       id: _uuid.v4(),
-      name: name,
+      name: name.trim(),
       phone: phone,
       email: email,
       memo: memo,
@@ -136,10 +155,8 @@ class AppState extends ChangeNotifier {
       updatedAt: now,
     );
     _people[person.id] = person;
-    await _repository.savePeople(_people.values.toList());
-    notifyListeners();
     return person;
-  }
+  });
 
   Future<void> updatePerson(
     String id, {
@@ -149,11 +166,14 @@ class AppState extends ChangeNotifier {
     String? memo,
     String? iconPath,
     bool? isHidden,
-  }) async {
+  }) => _mutate(() async {
     final existing = _people[id];
     if (existing == null) return;
+    if (name != null && name.trim().isEmpty) {
+      throw ArgumentError('名前を入力してください');
+    }
     _people[id] = existing.copyWith(
-      name: name,
+      name: name?.trim(),
       phone: phone,
       email: email,
       memo: memo,
@@ -161,9 +181,7 @@ class AppState extends ChangeNotifier {
       isHidden: isHidden,
       updatedAt: DateTime.now(),
     );
-    await _repository.savePeople(_people.values.toList());
-    notifyListeners();
-  }
+  });
 
   bool personHasTransactions(String id) =>
       _transactions.values.any((t) => t.personId == id);
@@ -174,7 +192,7 @@ class AppState extends ChangeNotifier {
   Future<void> unhidePerson(String id) => updatePerson(id, isHidden: false);
 
   /// 相手を取引ごと削除する（要件 13.3）。
-  Future<void> deletePersonWithTransactions(String id) async {
+  Future<void> deletePersonWithTransactions(String id) => _mutate(() async {
     final txIds =
         _transactions.values
             .where((t) => t.personId == id)
@@ -183,13 +201,7 @@ class AppState extends ChangeNotifier {
     _transactions.removeWhere((_, t) => t.personId == id);
     _repayments.removeWhere((r) => txIds.contains(r.transactionId));
     _people.remove(id);
-    await Future.wait([
-      _repository.savePeople(_people.values.toList()),
-      _repository.saveTransactions(_transactions.values.toList()),
-      _repository.saveRepayments(_repayments),
-    ]);
-    notifyListeners();
-  }
+  });
 
   // ---------------------------------------------------------------------------
   // 取引 CRUD
@@ -202,7 +214,8 @@ class AppState extends ChangeNotifier {
     required DateTime date,
     DateTime? dueDate,
     String? memo,
-  }) async {
+  }) => _mutate(() async {
+    _validateTransaction(personId, amount);
     final now = DateTime.now();
     final tx = TransactionModel(
       id: _uuid.v4(),
@@ -219,10 +232,8 @@ class AppState extends ChangeNotifier {
     );
     _transactions[tx.id] = tx;
     lastUsedType = type;
-    await _repository.saveTransactions(_transactions.values.toList());
-    notifyListeners();
     return tx;
-  }
+  });
 
   Future<void> updateTransaction(
     String id, {
@@ -233,9 +244,16 @@ class AppState extends ChangeNotifier {
     DateTime? dueDate,
     bool clearDueDate = false,
     String? memo,
-  }) async {
+  }) => _mutate(() async {
     final existing = _transactions[id];
     if (existing == null) return;
+    _validateTransaction(
+      personId ?? existing.personId,
+      amount ?? existing.amount,
+    );
+    if ((amount ?? existing.amount) < existing.repaidAmount) {
+      throw ArgumentError('返済済みの金額を下回る金額にはできません');
+    }
     _transactions[id] = existing.copyWith(
       personId: personId,
       type: type,
@@ -247,19 +265,12 @@ class AppState extends ChangeNotifier {
       updatedAt: DateTime.now(),
     );
     _recomputeTransaction(id);
-    await _repository.saveTransactions(_transactions.values.toList());
-    notifyListeners();
-  }
+  });
 
-  Future<void> deleteTransaction(String id) async {
+  Future<void> deleteTransaction(String id) => _mutate(() async {
     _transactions.remove(id);
     _repayments.removeWhere((r) => r.transactionId == id);
-    await Future.wait([
-      _repository.saveTransactions(_transactions.values.toList()),
-      _repository.saveRepayments(_repayments),
-    ]);
-    notifyListeners();
-  }
+  });
 
   // ---------------------------------------------------------------------------
   // 返済
@@ -278,11 +289,12 @@ class AppState extends ChangeNotifier {
     required DateTime date,
     RepaymentMethod? method,
     String? memo,
-  }) async {
+  }) => _mutate(() async {
     final tx = _transactions[transactionId];
     if (tx == null) {
       throw ArgumentError('取引が見つかりません');
     }
+    if (tx.isCancelled) throw ArgumentError('取り消した取引には返済できません');
     if (amount <= 0) {
       throw ArgumentError('1円以上の金額を入力してください');
     }
@@ -300,26 +312,16 @@ class AppState extends ChangeNotifier {
     );
     _repayments.add(repayment);
     _recomputeTransaction(transactionId);
-    await Future.wait([
-      _repository.saveRepayments(_repayments),
-      _repository.saveTransactions(_transactions.values.toList()),
-    ]);
-    notifyListeners();
     return repayment;
-  }
+  });
 
-  Future<void> deleteRepayment(String repaymentId) async {
+  Future<void> deleteRepayment(String repaymentId) => _mutate(() async {
     final index = _repayments.indexWhere((r) => r.id == repaymentId);
     if (index < 0) return;
     final txId = _repayments[index].transactionId;
     _repayments.removeAt(index);
     _recomputeTransaction(txId);
-    await Future.wait([
-      _repository.saveRepayments(_repayments),
-      _repository.saveTransactions(_transactions.values.toList()),
-    ]);
-    notifyListeners();
-  }
+  });
 
   // ---------------------------------------------------------------------------
   // 相殺（要件 6.5.4）
@@ -335,7 +337,7 @@ class AppState extends ChangeNotifier {
 
   /// 相手の貸し借りを差額で相殺する。相殺額分を貸付・借入それぞれの
   /// 未精算取引（古い順）へ返済として記録する。返した値は相殺した金額。
-  Future<int> offsetPerson(String personId) async {
+  Future<int> offsetPerson(String personId) => _mutate(() async {
     final offset = offsetableAmountForPerson(personId);
     if (offset <= 0) return 0;
 
@@ -343,13 +345,8 @@ class AppState extends ChangeNotifier {
     _applyOffset(personId, TransactionType.lend, offset, now);
     _applyOffset(personId, TransactionType.borrow, offset, now);
 
-    await Future.wait([
-      _repository.saveRepayments(_repayments),
-      _repository.saveTransactions(_transactions.values.toList()),
-    ]);
-    notifyListeners();
     return offset;
-  }
+  });
 
   void _applyOffset(
     String personId,
@@ -361,16 +358,16 @@ class AppState extends ChangeNotifier {
     final targets =
         _transactions.values
             .where(
-              (t) => t.personId == personId && t.type == type && t.isOutstanding,
+              (t) =>
+                  t.personId == personId && t.type == type && t.isOutstanding,
             )
             .toList()
           ..sort((a, b) => a.date.compareTo(b.date));
 
     for (final tx in targets) {
       if (remaining <= 0) break;
-      final applied = remaining < tx.remainingAmount
-          ? remaining
-          : tx.remainingAmount;
+      final applied =
+          remaining < tx.remainingAmount ? remaining : tx.remainingAmount;
       _repayments.add(
         Repayment(
           id: _uuid.v4(),
@@ -390,6 +387,57 @@ class AppState extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   // 内部：返済済み金額とステータスの再計算
   // ---------------------------------------------------------------------------
+
+  void _validateTransaction(String personId, int amount) {
+    if (!_people.containsKey(personId)) throw ArgumentError('相手が見つかりません');
+    if (amount < 1 || amount > 9999999999) {
+      throw ArgumentError('金額は1円から9,999,999,999円で入力してください');
+    }
+  }
+
+  AppData _snapshot() => AppData(
+    people: _people.values.toList(),
+    transactions: _transactions.values.toList(),
+    repayments: List.of(_repayments),
+  );
+
+  void _restore(AppData data) {
+    _people
+      ..clear()
+      ..addEntries(data.people.map((p) => MapEntry(p.id, p)));
+    _transactions
+      ..clear()
+      ..addEntries(data.transactions.map((t) => MapEntry(t.id, t)));
+    _repayments
+      ..clear()
+      ..addAll(data.repayments);
+  }
+
+  Future<void> _pending = Future.value();
+
+  // Serialize changes and persist one complete ledger before reporting success.
+  Future<T> _mutate<T>(Future<T> Function() change) {
+    final result = _pending.then((_) async {
+      final before = _snapshot();
+      final previousType = lastUsedType;
+      final previouslyLoaded = _loaded;
+      try {
+        final value = await change();
+        await _repository.save(_snapshot());
+        _revision++;
+        notifyListeners();
+        return value;
+      } catch (_) {
+        _restore(before);
+        lastUsedType = previousType;
+        _loaded = previouslyLoaded;
+        notifyListeners();
+        rethrow;
+      }
+    });
+    _pending = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
 
   void _recomputeTransaction(String id) {
     final tx = _transactions[id];

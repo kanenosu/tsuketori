@@ -5,6 +5,7 @@ import '../../models/transaction.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
+import '../../utils/persisted_action.dart';
 import '../../widgets/person_avatar.dart';
 import '../../widgets/transaction_tile.dart';
 import '../transaction/transaction_detail_screen.dart';
@@ -29,11 +30,12 @@ class PersonDetailScreen extends StatelessWidget {
 
     final balance = appState.balanceForPerson(personId);
     final diff = balance.diff;
-    final diffColor = diff > 0
-        ? AppColors.lend
-        : diff < 0
-        ? AppColors.borrow
-        : AppColors.unpaid;
+    final diffColor =
+        diff > 0
+            ? AppColors.lend
+            : diff < 0
+            ? AppColors.borrow
+            : AppColors.unpaid;
     final transactions = appState.transactionsForPerson(personId);
     final outstanding = transactions.where((t) => t.isOutstanding).toList();
     final settled = transactions.where((t) => !t.isOutstanding).toList();
@@ -45,11 +47,15 @@ class PersonDetailScreen extends StatelessWidget {
         actions: [
           PopupMenuButton<String>(
             onSelected: (v) => _onMenu(context, appState, v),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('相手を編集')),
-              PopupMenuItem(value: 'hide', child: Text('非表示にする')),
-              PopupMenuItem(value: 'delete', child: Text('取引ごと削除')),
-            ],
+            itemBuilder:
+                (_) => [
+                  PopupMenuItem(value: 'edit', child: Text('相手を編集')),
+                  PopupMenuItem(
+                    value: person.isHidden ? 'unhide' : 'hide',
+                    child: Text(person.isHidden ? '再表示する' : '非表示にする'),
+                  ),
+                  PopupMenuItem(value: 'delete', child: Text('取引ごと削除')),
+                ],
           ),
         ],
       ),
@@ -72,7 +78,7 @@ class PersonDetailScreen extends StatelessWidget {
                     '${Formatters.signed(diff)}円',
                     style: TextStyle(
                       fontSize: 32,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: diffColor,
                     ),
                   ),
@@ -81,6 +87,8 @@ class PersonDetailScreen extends StatelessWidget {
                         ? '受け取る予定'
                         : diff < 0
                         ? '返す予定'
+                        : balance.unsettledCount > 0
+                        ? '差額なし（未精算の取引あり）'
                         : '精算済み',
                     style: TextStyle(color: diffColor),
                   ),
@@ -122,8 +130,11 @@ class PersonDetailScreen extends StatelessWidget {
                       ),
                     ),
                     FilledButton(
-                      onPressed: () =>
-                          _confirmOffset(context, appState, offsetable),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(72, 48),
+                      ),
+                      onPressed:
+                          () => _confirmOffset(context, appState, offsetable),
                       child: const Text('相殺'),
                     ),
                   ],
@@ -167,19 +178,19 @@ class PersonDetailScreen extends StatelessWidget {
 
   Widget _tile(BuildContext context, AppState appState, TransactionModel tx) =>
       Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: TransactionTile(
-      transaction: tx,
-      person: appState.person(tx.personId),
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => TransactionDetailScreen(transactionId: tx.id),
-          ),
-        );
-      },
-    ),
-  );
+        padding: const EdgeInsets.only(bottom: 10),
+        child: TransactionTile(
+          transaction: tx,
+          person: appState.person(tx.personId),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => TransactionDetailScreen(transactionId: tx.id),
+              ),
+            );
+          },
+        ),
+      );
 
   Widget _sectionTitle(BuildContext context, String title, int count) =>
       Padding(
@@ -210,10 +221,7 @@ class PersonDetailScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).hintColor,
-            ),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
           ),
           const SizedBox(height: 4),
           Text(
@@ -238,12 +246,24 @@ class PersonDetailScreen extends StatelessWidget {
       case 'edit':
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) =>
-                PersonEditScreen(person: appState.person(personId)),
+            builder: (_) => PersonEditScreen(person: appState.person(personId)),
           ),
         );
       case 'hide':
-        await appState.hidePerson(personId);
+        if (!await persistedAction(
+          context,
+          () => appState.hidePerson(personId),
+        )) {
+          return;
+        }
+        if (context.mounted) Navigator.of(context).pop();
+      case 'unhide':
+        if (!await persistedAction(
+          context,
+          () => appState.unhidePerson(personId),
+        )) {
+          return;
+        }
         if (context.mounted) Navigator.of(context).pop();
       case 'delete':
         await _confirmDelete(context, appState);
@@ -258,26 +278,33 @@ class PersonDetailScreen extends StatelessWidget {
     // 相殺実行前に確認画面を表示する（要件 6.5.4）。
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('貸し借りを相殺'),
-        content: Text(
-          '${Formatters.yenSuffix(amount)} 分の貸し借りを相殺します。'
-          'この操作で該当分が返済済みとして記録されます。よろしいですか？',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('キャンセル'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('貸し借りを相殺'),
+            content: Text(
+              '${Formatters.yenSuffix(amount)} 分の貸し借りを相殺します。'
+              'この操作で該当分が返済済みとして記録されます。よろしいですか？',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('相殺する'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('相殺する'),
-          ),
-        ],
-      ),
     );
     if (ok == true) {
-      final offset = await appState.offsetPerson(personId);
+      var offset = 0;
+      if (!context.mounted) return;
+      if (!await persistedAction(context, () async {
+        offset = await appState.offsetPerson(personId);
+      })) {
+        return;
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${Formatters.yenSuffix(offset)} を相殺しました')),
@@ -290,31 +317,37 @@ class PersonDetailScreen extends StatelessWidget {
     final hasTx = appState.personHasTransactions(personId);
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('相手を削除'),
-        content: Text(
-          hasTx
-              ? 'この相手には取引履歴があります。取引を含めてすべて削除しますか？'
-                    'この操作は元に戻せません。'
-              : 'この相手を削除しますか？',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('相手を削除'),
+            content: Text(
+              hasTx
+                  ? 'この相手には取引履歴があります。取引を含めてすべて削除しますか？'
+                      'この操作は元に戻せません。'
+                  : 'この相手を削除しますか？',
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('削除する'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                ),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('削除する'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
-    if (ok == true) {
-      await appState.deletePersonWithTransactions(personId);
+    if (ok == true && context.mounted) {
+      if (!await persistedAction(
+        context,
+        () => appState.deletePersonWithTransactions(personId),
+      )) {
+        return;
+      }
       if (context.mounted) Navigator.of(context).pop();
     }
   }

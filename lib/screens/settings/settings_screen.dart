@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import '../../widgets/ledger_header.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/settings_state.dart';
+import '../../utils/persisted_action.dart';
+import 'backup_screen.dart';
 
 /// 設定画面（要件 6.9・モックアップ⑨準拠）。
 class SettingsScreen extends StatelessWidget {
@@ -23,52 +27,45 @@ class SettingsScreen extends StatelessWidget {
     final settings = context.watch<SettingsState>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('設定'), centerTitle: true),
+      appBar: LedgerHeader(title: '設定'),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
+          _heading(context, 'データ'),
           _group(context, [
             _Row(
-              icon: Icons.attach_money,
+              icon: CupertinoIcons.money_yen_circle,
               title: '通貨の設定',
-              trailing: '円（¥）',
-              onTap: () => _comingSoon(context, '通貨の設定'),
+              trailing: '円（¥）固定',
+              onTap: null,
             ),
             _Row(
-              icon: Icons.backup_outlined,
+              icon: CupertinoIcons.square_arrow_up,
               title: 'データのバックアップ',
-              onTap: () => _comingSoon(context, 'データのバックアップ'),
+
+              onTap: () => _openBackup(context),
             ),
             _Row(
-              icon: Icons.restore,
+              icon: CupertinoIcons.arrow_counterclockwise,
               title: 'データの復元',
-              onTap: () => _comingSoon(context, 'データの復元'),
+
+              onTap: () => _openBackup(context),
             ),
           ]),
-          const SizedBox(height: 16),
+          const SizedBox(height: 28),
+          _heading(context, '表示'),
           _group(context, [
             _Row(
-              icon: Icons.palette_outlined,
+              icon: CupertinoIcons.circle_lefthalf_fill,
               title: 'テーマ設定',
               trailing: _themeLabel(settings.themeMode),
               onTap: () => _pickTheme(context, settings),
             ),
-            _Row(
-              icon: Icons.lock_outline,
-              title: 'パスコードロック',
-              trailing: 'オフ',
-              onTap: () => _comingSoon(context, 'パスコードロック'),
-            ),
           ]),
           const SizedBox(height: 16),
           _group(context, [
             _Row(
-              icon: Icons.mail_outline,
-              title: 'サポート・お問い合わせ',
-              onTap: () => _comingSoon(context, 'サポート・お問い合わせ'),
-            ),
-            _Row(
-              icon: Icons.info_outline,
+              icon: CupertinoIcons.info,
               title: 'このアプリについて',
               onTap: () => _showAbout(context),
             ),
@@ -77,7 +74,7 @@ class SettingsScreen extends StatelessWidget {
             padding: EdgeInsets.all(16),
             child: Center(
               child: Text(
-                '貸し借り管理アプリ  version 1.0.0',
+                'ツケトリ  1.0.0',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ),
@@ -85,6 +82,20 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _heading(BuildContext context, String text) => Padding(
+    padding: const EdgeInsets.only(left: 16, bottom: 8),
+    child: Text(
+      text,
+      style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor),
+    ),
+  );
+
+  void _openBackup(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const BackupScreen()));
   }
 
   Widget _group(BuildContext context, List<_Row> rows) {
@@ -104,34 +115,36 @@ class SettingsScreen extends StatelessWidget {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final mode in ThemeMode.values)
-              RadioListTile<ThemeMode>(
-                value: mode,
-                groupValue: settings.themeMode,
-                onChanged: (m) {
-                  settings.setThemeMode(m!);
-                  Navigator.of(ctx).pop();
-                },
-                title: Text(_themeLabel(mode)),
-                secondary: Icon(switch (mode) {
-                  ThemeMode.light => Icons.light_mode,
-                  ThemeMode.dark => Icons.dark_mode,
-                  ThemeMode.system => Icons.brightness_auto,
-                }),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _comingSoon(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('「$label」は今後対応予定です')),
+      builder:
+          (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final mode in ThemeMode.values)
+                  ListTile(
+                    trailing:
+                        settings.themeMode == mode
+                            ? const Icon(Icons.check)
+                            : null,
+                    onTap: () async {
+                      if (await persistedAction(
+                            context,
+                            () => settings.setThemeMode(mode),
+                          ) &&
+                          ctx.mounted) {
+                        Navigator.of(ctx).pop();
+                      }
+                    },
+                    title: Text(_themeLabel(mode)),
+                    leading: Icon(switch (mode) {
+                      ThemeMode.light => Icons.light_mode,
+                      ThemeMode.dark => Icons.dark_mode,
+                      ThemeMode.system => Icons.brightness_auto,
+                    }),
+                  ),
+              ],
+            ),
+          ),
     );
   }
 
@@ -140,9 +153,7 @@ class SettingsScreen extends StatelessWidget {
       context: context,
       applicationName: '貸し借り管理アプリ',
       applicationVersion: '1.0.0 (MVP)',
-      children: const [
-        Text('お金の貸し借りを、シンプルに、すぐに記録できるアプリです。'),
-      ],
+      children: const [Text('お金の貸し借りを、シンプルに、すぐに記録できるアプリです。')],
     );
   }
 }
@@ -158,13 +169,13 @@ class _Row extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? trailing;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: Icon(icon),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w400)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -177,7 +188,8 @@ class _Row extends StatelessWidget {
               ),
             ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+          if (onTap != null)
+            const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
         ],
       ),
       onTap: onTap,

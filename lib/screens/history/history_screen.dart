@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import '../../widgets/ledger_header.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/transaction.dart';
@@ -25,10 +27,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   HistoryQuery _query = const HistoryQuery();
 
   int get _typeTab => switch (_query.typeFilter) {
-        HistoryTypeFilter.all => 0,
-        HistoryTypeFilter.lend => 1,
-        HistoryTypeFilter.borrow => 2,
-      };
+    HistoryTypeFilter.all => 0,
+    HistoryTypeFilter.lend => 1,
+    HistoryTypeFilter.borrow => 2,
+  };
 
   Future<void> _openFilter() async {
     final result = await Navigator.of(context).push<HistoryQuery>(
@@ -42,17 +44,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final appState = context.watch<AppState>();
     String nameOf(String id) => appState.person(id)?.name ?? '';
     final results = _query.apply(appState.transactions, nameOf);
-    final grouped = _groupByMonth(results);
+    final chronological =
+        _query.sort == HistorySort.newest || _query.sort == HistorySort.oldest;
+    final grouped = chronological ? _groupByMonth(results) : {'検索結果': results};
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('履歴'),
-        centerTitle: true,
+      appBar: LedgerHeader(
+        title: '履歴',
         actions: [
           IconButton(
             icon: Badge(
               isLabelVisible: _query.hasActiveFilter,
-              child: const Icon(Icons.tune),
+              child: const Icon(CupertinoIcons.slider_horizontal_3),
             ),
             tooltip: 'フィルター',
             onPressed: _openFilter,
@@ -62,65 +65,84 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
             child: PillTabs(
               labels: const ['すべて', '貸した', '借りた'],
               selectedIndex: _typeTab,
-              selectedColor: _typeTab == 2
-                  ? StatusStyle.typeColor(TransactionType.borrow)
-                  : StatusStyle.typeColor(TransactionType.lend),
-              onChanged: (i) => setState(() {
-                _query = _query.copyWith(
-                  typeFilter: switch (i) {
-                    1 => HistoryTypeFilter.lend,
-                    2 => HistoryTypeFilter.borrow,
-                    _ => HistoryTypeFilter.all,
-                  },
-                );
-              }),
+              selectedColor:
+                  _typeTab == 2
+                      ? StatusStyle.typeColor(TransactionType.borrow)
+                      : StatusStyle.typeColor(TransactionType.lend),
+              onChanged:
+                  (i) => setState(() {
+                    _query = _query.copyWith(
+                      typeFilter: switch (i) {
+                        1 => HistoryTypeFilter.lend,
+                        2 => HistoryTypeFilter.borrow,
+                        _ => HistoryTypeFilter.all,
+                      },
+                    );
+                  }),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 20, 12),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: '相手・メモ・金額で検索',
+                prefixIcon: Icon(CupertinoIcons.search),
+              ),
+              onChanged:
+                  (text) =>
+                      setState(() => _query = _query.copyWith(text: text)),
             ),
           ),
           Expanded(
-            child: results.isEmpty
-                ? const EmptyState(
-                    icon: Icons.search_off,
-                    title: '該当する取引がありません',
-                    message: 'フィルターの条件を変えてみてください。',
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    children: [
-                      for (final entry in grouped.entries) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-                          child: Text(
-                            entry.key,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Theme.of(context).hintColor,
+            child:
+                results.isEmpty
+                    ? const EmptyState(
+                      icon: Icons.search_off,
+                      title: '該当する取引がありません',
+                      message: 'フィルターの条件を変えてみてください。',
+                    )
+                    : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 20, 24),
+                      children: [
+                        for (final entry in grouped.entries) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+                            child: Text(
+                              entry.key,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).hintColor,
+                              ),
                             ),
                           ),
-                        ),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < entry.value.length; i++) ...[
-                                  if (i > 0) const Divider(height: 1),
-                                  _HistoryRow(transaction: entry.value[i]),
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              child: Column(
+                                children: [
+                                  for (
+                                    var i = 0;
+                                    i < entry.value.length;
+                                    i++
+                                  ) ...[
+                                    if (i > 0) const Divider(height: 1),
+                                    _HistoryRow(transaction: entry.value[i]),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
-                  ),
+                    ),
           ),
         ],
       ),
@@ -184,7 +206,7 @@ class _HistoryRow extends StatelessWidget {
                     person?.name ?? '(不明な相手)',
                     style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -196,12 +218,19 @@ class _HistoryRow extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              '${isLend ? '+' : '-'}${Formatters.yenSuffix(tx.amount)}',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: typeColor,
+            const SizedBox(width: 8),
+            Flexible(
+              fit: FlexFit.tight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '${isLend ? '+' : '−'}${Formatters.yenSuffix(tx.amount)}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ),
           ],

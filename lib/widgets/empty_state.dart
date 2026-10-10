@@ -22,12 +22,12 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: theme.hintColor.withValues(alpha: 0.5)),
+            Icon(icon, size: 36, color: theme.hintColor.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             if (message != null) ...[
               const SizedBox(height: 8),

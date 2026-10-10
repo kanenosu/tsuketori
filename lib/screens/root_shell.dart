@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import 'home/home_screen.dart';
 import 'history/history_screen.dart';
@@ -26,28 +27,32 @@ class _RootShellState extends State<RootShell> {
     ];
     return Scaffold(
       body: IndexedStack(index: _index, children: screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+      bottomNavigationBar: CupertinoTabBar(
+        currentIndex: _index,
+        activeColor: Theme.of(context).colorScheme.primary,
+        inactiveColor: Theme.of(context).hintColor,
+        backgroundColor: Theme.of(context).cardColor.withValues(alpha: 0.96),
+        height: 52,
+        onTap: (i) => setState(() => _index = i),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.house),
+            activeIcon: Icon(CupertinoIcons.house_fill),
             label: 'ホーム',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.list_bullet),
+            activeIcon: Icon(CupertinoIcons.list_bullet),
             label: '履歴',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.person_2),
+            activeIcon: Icon(CupertinoIcons.person_2_fill),
             label: '人',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.gear),
+            activeIcon: Icon(CupertinoIcons.gear_solid),
             label: '設定',
           ),
         ],

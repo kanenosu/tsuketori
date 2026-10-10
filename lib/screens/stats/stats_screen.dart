@@ -27,9 +27,10 @@ class _StatsScreenState extends State<StatsScreen> {
 
   void _shift(int delta) {
     setState(() {
-      _anchor = _monthly
-          ? DateTime(_anchor.year, _anchor.month + delta)
-          : DateTime(_anchor.year + delta, _anchor.month);
+      _anchor =
+          _monthly
+              ? DateTime(_anchor.year, _anchor.month + delta)
+              : DateTime(_anchor.year + delta, _anchor.month);
     });
   }
 
@@ -47,18 +48,21 @@ class _StatsScreenState extends State<StatsScreen> {
     final summary = appState.summary(txs);
     final balance = summary.lentTotal - summary.borrowedTotal;
 
-    final lendCount = txs
-        .where((t) => !t.isCancelled && t.type == TransactionType.lend)
-        .length;
-    final borrowCount = txs
-        .where((t) => !t.isCancelled && t.type == TransactionType.borrow)
-        .length;
+    final lendCount =
+        txs
+            .where((t) => !t.isCancelled && t.type == TransactionType.lend)
+            .length;
+    final borrowCount =
+        txs
+            .where((t) => !t.isCancelled && t.type == TransactionType.borrow)
+            .length;
 
-    final personBalances = appState.people
-        .map((p) => (p, appState.balanceForPerson(p.id).diff))
-        .where((e) => e.$2 != 0)
-        .toList()
-      ..sort((a, b) => b.$2.abs().compareTo(a.$2.abs()));
+    final personBalances =
+        appState.allPeople
+            .map((p) => (p, appState.balanceForPerson(p.id).diff))
+            .where((e) => e.$2 != 0)
+            .toList()
+          ..sort((a, b) => b.$2.abs().compareTo(a.$2.abs()));
 
     return Scaffold(
       appBar: AppBar(title: const Text('統計'), centerTitle: true),
@@ -83,12 +87,10 @@ class _StatsScreenState extends State<StatsScreen> {
                 onPressed: () => _shift(-1),
               ),
               Text(
-                _monthly
-                    ? Formatters.monthLabel(_anchor)
-                    : '${_anchor.year}年',
+                _monthly ? Formatters.monthLabel(_anchor) : '${_anchor.year}年',
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               IconButton(
@@ -106,7 +108,7 @@ class _StatsScreenState extends State<StatsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '収支',
+                    '期間内に記録した貸付・借入の差額',
                     style: TextStyle(color: Theme.of(context).hintColor),
                   ),
                   const SizedBox(height: 4),
@@ -114,7 +116,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     '${Formatters.signed(balance)}円',
                     style: TextStyle(
                       fontSize: 30,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: balance >= 0 ? AppColors.lend : AppColors.borrow,
                     ),
                   ),
@@ -122,12 +124,12 @@ class _StatsScreenState extends State<StatsScreen> {
                   Row(
                     children: [
                       _metric(
-                        '貸した総額',
+                        '期間内に貸した総額',
                         Formatters.yenSuffix(summary.lentTotal),
                         AppColors.lend,
                       ),
                       _metric(
-                        '借りた総額',
+                        '期間内に借りた総額',
                         Formatters.yenSuffix(summary.borrowedTotal),
                         AppColors.borrow,
                       ),
@@ -137,6 +139,8 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          const Text('上の金額は取引日の期間で集計した元の金額です。返済による増減や現金の収支を表すものではありません。'),
           const SizedBox(height: 12),
           // 取引件数カード。
           Card(
@@ -162,18 +166,19 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            '相手ごとの残高',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w800),
+            '現在の相手別残高（全期間）',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
+          const SizedBox(height: 8),
+          const Text('選択期間に関係なく、非表示の相手を含む現在の未返済差額です。貸し・借りが同額の相手は表示しません。'),
           const SizedBox(height: 8),
           if (personBalances.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
-                '未精算の残高はありません',
+                '差額のある相手はいません',
                 style: TextStyle(color: Theme.of(context).hintColor),
               ),
             )
@@ -186,19 +191,17 @@ class _StatsScreenState extends State<StatsScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: PersonAvatar(person: person, radius: 20),
-                  title: Text(person.name),
+                  title: Text(
+                    person.isHidden ? '${person.name}（非表示）' : person.name,
+                  ),
                   trailing: Text(
                     '${Formatters.signed(diff)}円',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700, color: color),
                   ),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            PersonDetailScreen(personId: person.id),
+                        builder: (_) => PersonDetailScreen(personId: person.id),
                       ),
                     );
                   },
@@ -227,7 +230,7 @@ class _StatsScreenState extends State<StatsScreen> {
               value,
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 color: color,
               ),
             ),

@@ -43,8 +43,10 @@ dependencies:
   intl: ^0.19.0
   # 取引ID・相手ID・返済IDの生成
   uuid: ^4.5.1
+  file_picker: 10.3.10
 
 dev_dependencies:
+  shared_preferences_platform_interface: ^2.4.1
   flutter_test:
     sdk: flutter
 
