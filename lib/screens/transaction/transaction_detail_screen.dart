@@ -8,6 +8,7 @@ import '../../theme/status_style.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/person_avatar.dart';
 import '../../widgets/status_badge.dart';
+import '../../widgets/yen_amount.dart';
 import '../receipt/receipt_preview_screen.dart';
 import '../repayment/repayment_screen.dart';
 import 'edit_transaction_screen.dart';
@@ -97,7 +98,7 @@ class TransactionDetailScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  isLend ? Icons.arrow_upward : Icons.arrow_downward,
+                  isLend ? Icons.south_west_rounded : Icons.north_east_rounded,
                   color: typeColor,
                   size: 30,
                 ),
@@ -112,13 +113,12 @@ class TransactionDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                '${isLend ? '+' : '-'}${Formatters.yenSuffix(tx.amount)}',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w700,
-                  color: typeColor,
-                ),
+              YenAmount(
+                amount: tx.amount,
+                prefix: isLend ? '+' : '-',
+                fontSize: 44,
+                fontWeight: FontWeight.w800,
+                color: typeColor,
               ),
               const SizedBox(height: 12),
               Row(

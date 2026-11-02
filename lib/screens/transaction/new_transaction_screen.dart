@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/person.dart';
@@ -7,6 +6,7 @@ import '../../models/transaction_type.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/yen_amount.dart';
+import '../../widgets/amount_keypad.dart';
 import '../../widgets/person_avatar_row.dart';
 import '../../widgets/type_segment.dart';
 import '../person/person_select_screen.dart';
@@ -59,6 +59,20 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     final digits = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return null;
     return int.tryParse(digits);
+  }
+
+  Future<void> _pickAmount() async {
+    final value = await showAmountKeypad(
+      context,
+      initial: _amount,
+      accent: _accent,
+      title: _type == TransactionType.lend ? '貸した金額' : '借りた金額',
+    );
+    if (value == null) return;
+    setState(() {
+      _amountController.text = '$value';
+      _amountError = null;
+    });
   }
 
   Future<void> _pickPerson() async {
@@ -197,32 +211,28 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                 _label('金額'),
                 _FieldCard(
                   error: _amountError,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      controller: _amountController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: _pickAmount,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 20,
                       ),
-                      decoration: const InputDecoration(
-                        hintText: '0',
-                        // 価格表示ルール：数字 32px → 円 16px。
-                        suffixIcon: YenSuffix(),
-                        suffixIconConstraints: YenSuffix.constraints,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        filled: false,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: YenAmount(
+                            amount: _amount ?? 0,
+                            fontSize: 44,
+                            fontWeight: FontWeight.w800,
+                            color:
+                                _amount == null
+                                    ? AppColors.placeholder
+                                    : _accent,
+                          ),
+                        ),
                       ),
-                      onChanged: (_) {
-                        if (_amountError != null) {
-                          setState(() => _amountError = null);
-                        }
-                      },
                     ),
                   ),
                 ),

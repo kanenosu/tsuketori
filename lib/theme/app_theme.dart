@@ -14,7 +14,7 @@ class AppTheme {
   static ThemeData dark() => _build(Brightness.dark);
 
   static const _radius = 8.0;
-  static const String? _font = null;
+  static const String _font = 'Manrope';
   static const _fallback = ['Hiragino Sans', 'Noto Sans CJK JP'];
 
   static ThemeData _build(Brightness brightness) {

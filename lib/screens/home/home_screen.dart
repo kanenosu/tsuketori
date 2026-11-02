@@ -92,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Stack(
                 children: [
                   Container(
-                    height: topInset + 248,
+                    height: topInset + 270,
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
@@ -326,41 +326,65 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.white,
                       ),
                     )
-                    : YenAmount(
-                      amount: balance.abs(),
-                      prefix: balance > 0 ? '+' : (balance < 0 ? '-' : ''),
-                      fontSize: 48,
-                      color: Colors.white,
+                    // 起動時に一度だけ 0 から数え上げる（動きはここだけ）。
+                    : TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: balance.abs().toDouble()),
+                      duration:
+                          MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 900),
+                      curve: Curves.easeOutCubic,
+                      builder:
+                          (context, v, _) => YenAmount(
+                            amount: v.round(),
+                            prefix:
+                                balance > 0 ? '+' : (balance < 0 ? '-' : ''),
+                            fontSize: 52,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
                     ),
           ),
         ),
+        const SizedBox(height: 16),
+        _RatioBar(lent: lent, borrowed: borrowed),
         const SizedBox(height: 12),
         Row(
           children: [
-            _miniStat('受け取る予定', lent),
+            _miniStat('受け取る予定', lent, Colors.white),
             Container(
               width: 1,
               height: 28,
               margin: const EdgeInsets.symmetric(horizontal: 16),
               color: Colors.white.withValues(alpha: 0.35),
             ),
-            _miniStat('返す予定', borrowed),
+            _miniStat('返す予定', borrowed, const Color(0xFFFFB4DD)),
           ],
         ),
       ],
     );
   }
 
-  Widget _miniStat(String label, int amount) {
+  Widget _miniStat(String label, int amount, Color marker) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.white.withValues(alpha: 0.85),
-          ),
+        Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: marker, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 2),
         _hideAmount
@@ -402,6 +426,48 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(fontSize: 12, color: AppColors.subtextGray),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 受け取る予定と返す予定の比率を1本で示すバー。
+class _RatioBar extends StatelessWidget {
+  const _RatioBar({required this.lent, required this.borrowed});
+
+  final int lent;
+  final int borrowed;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = lent + borrowed;
+    final lentFlex = total == 0 ? 1 : (lent * 1000 ~/ total).clamp(0, 1000);
+    final borrowedFlex = total == 0 ? 0 : 1000 - lentFlex;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: SizedBox(
+        height: 6,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (lentFlex > 0)
+              Expanded(
+                flex: lentFlex,
+                child: ColoredBox(
+                  color:
+                      total == 0
+                          ? Colors.white.withValues(alpha: 0.3)
+                          : Colors.white,
+                ),
+              ),
+            if (lentFlex > 0 && borrowedFlex > 0) const SizedBox(width: 2),
+            if (borrowedFlex > 0)
+              Expanded(
+                flex: borrowedFlex,
+                child: const ColoredBox(color: Color(0xFFFFB4DD)),
+              ),
+          ],
+        ),
       ),
     );
   }
