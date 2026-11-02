@@ -87,8 +87,7 @@ class HistoryQuery {
       typeFilter: typeFilter ?? this.typeFilter,
       statusFilter: statusFilter ?? this.statusFilter,
       period: period ?? this.period,
-      customRange:
-          clearCustomRange ? null : (customRange ?? this.customRange),
+      customRange: clearCustomRange ? null : (customRange ?? this.customRange),
       personId: clearPerson ? null : (personId ?? this.personId),
       sort: sort ?? this.sort,
     );
@@ -108,14 +107,15 @@ class HistoryQuery {
     DateTime? now,
   }) {
     final current = now ?? DateTime.now();
-    final result = source.where((tx) {
-      if (!_matchesType(tx)) return false;
-      if (!_matchesStatus(tx)) return false;
-      if (personId != null && tx.personId != personId) return false;
-      if (!_matchesPeriod(tx, current)) return false;
-      if (!_matchesText(tx, nameLookup)) return false;
-      return true;
-    }).toList();
+    final result =
+        source.where((tx) {
+          if (!_matchesType(tx)) return false;
+          if (!_matchesStatus(tx, current)) return false;
+          if (personId != null && tx.personId != personId) return false;
+          if (!_matchesPeriod(tx, current)) return false;
+          if (!_matchesText(tx, nameLookup)) return false;
+          return true;
+        }).toList();
 
     result.sort(_comparator);
     return result;
@@ -132,18 +132,18 @@ class HistoryQuery {
     }
   }
 
-  bool _matchesStatus(TransactionModel tx) {
+  bool _matchesStatus(TransactionModel tx, DateTime current) {
     switch (statusFilter) {
       case HistoryStatusFilter.all:
         return true;
       case HistoryStatusFilter.unpaid:
-        return tx.effectiveStatus() == TransactionStatus.unpaid;
+        return tx.effectiveStatus(asOf: current) == TransactionStatus.unpaid;
       case HistoryStatusFilter.partial:
-        return tx.effectiveStatus() == TransactionStatus.partial;
+        return tx.effectiveStatus(asOf: current) == TransactionStatus.partial;
       case HistoryStatusFilter.settled:
-        return tx.effectiveStatus() == TransactionStatus.settled;
+        return tx.effectiveStatus(asOf: current) == TransactionStatus.settled;
       case HistoryStatusFilter.overdue:
-        return tx.effectiveStatus() == TransactionStatus.overdue;
+        return tx.effectiveStatus(asOf: current) == TransactionStatus.overdue;
     }
   }
 
@@ -164,8 +164,11 @@ class HistoryQuery {
         final range = customRange;
         if (range == null) return true;
         final d = DateTime(tx.date.year, tx.date.month, tx.date.day);
-        final start =
-            DateTime(range.start.year, range.start.month, range.start.day);
+        final start = DateTime(
+          range.start.year,
+          range.start.month,
+          range.start.day,
+        );
         final end = DateTime(range.end.year, range.end.month, range.end.day);
         return !d.isBefore(start) && !d.isAfter(end);
     }

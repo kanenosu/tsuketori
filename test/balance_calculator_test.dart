@@ -35,13 +35,21 @@ void main() {
     });
 
     test('全額返済で返済済み扱い', () {
-      final t = tx(amount: 5000, repaid: 5000, status: TransactionStatus.settled);
+      final t = tx(
+        amount: 5000,
+        repaid: 5000,
+        status: TransactionStatus.settled,
+      );
       expect(t.effectiveStatus(), TransactionStatus.settled);
       expect(t.isOutstanding, isFalse);
     });
 
     test('一部返済のステータス', () {
-      final t = tx(amount: 10000, repaid: 3000, status: TransactionStatus.partial);
+      final t = tx(
+        amount: 10000,
+        repaid: 3000,
+        status: TransactionStatus.partial,
+      );
       expect(t.effectiveStatus(), TransactionStatus.partial);
     });
 

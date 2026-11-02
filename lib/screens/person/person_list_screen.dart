@@ -24,9 +24,10 @@ class _PersonListScreenState extends State<PersonListScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final query = _query.trim();
-    final people = appState.people
-        .where((p) => query.isEmpty || p.name.contains(query))
-        .toList();
+    final people =
+        appState.people
+            .where((p) => query.isEmpty || p.name.contains(query))
+            .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -57,42 +58,43 @@ class _PersonListScreenState extends State<PersonListScreen> {
             ),
           ),
           Expanded(
-            child: people.isEmpty
-                ? const EmptyState(
-                    icon: Icons.people_outline,
-                    title: '相手が登録されていません',
-                    message: '右上の＋から相手を追加できます。',
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-                    children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          child: Column(
-                            children: [
-                              for (var i = 0; i < people.length; i++) ...[
-                                if (i > 0) const Divider(height: 1),
-                                _PersonRow(personId: people[i].id),
+            child:
+                people.isEmpty
+                    ? const EmptyState(
+                      icon: Icons.people_outline,
+                      title: '相手が登録されていません',
+                      message: '右上の＋から相手を追加できます。',
+                    )
+                    : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+                      children: [
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            child: Column(
+                              children: [
+                                for (var i = 0; i < people.length; i++) ...[
+                                  if (i > 0) const Divider(height: 1),
+                                  _PersonRow(personId: people[i].id),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'person_fab',
         onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const PersonEditScreen()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const PersonEditScreen()));
         },
         child: const Icon(Icons.person_add),
       ),
@@ -113,7 +115,7 @@ class _PersonRow extends StatelessWidget {
     final balance = appState.balanceForPerson(personId);
 
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(

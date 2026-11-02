@@ -16,7 +16,9 @@ class PersonAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconPath = person?.iconPath;
-    if (iconPath != null && iconPath.isNotEmpty && File(iconPath).existsSync()) {
+    if (iconPath != null &&
+        iconPath.isNotEmpty &&
+        File(iconPath).existsSync()) {
       return CircleAvatar(
         radius: radius,
         backgroundImage: FileImage(File(iconPath)),
@@ -42,14 +44,15 @@ class PersonAvatar extends StatelessWidget {
 
   Color _colorFor(String name) {
     if (name.isEmpty) return AppColors.primary;
+    // PayPay Extended color の 01 行（背景は同色 15%）。
     const palette = [
-      Color(0xFF2563EB),
-      Color(0xFF7C3AED),
-      Color(0xFF0891B2),
-      Color(0xFFDB2777),
-      Color(0xFFEA580C),
-      Color(0xFF16A34A),
-      Color(0xFFCA8A04),
+      Color(0xFF3895FF),
+      Color(0xFF7921A3),
+      Color(0xFF00C2C2),
+      Color(0xFFF23099),
+      Color(0xFFFC6600),
+      Color(0xFF26BF7D),
+      Color(0xFF00B9F5),
     ];
     return palette[name.hashCode.abs() % palette.length];
   }

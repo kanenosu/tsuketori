@@ -2,126 +2,141 @@ import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
 import '../theme/app_colors.dart';
-import '../utils/formatters.dart';
+import 'yen_amount.dart';
 
-/// ホーム上部の残高サマリーカード（要件 6.1.1）。
-/// 青→パープルのグラデーションに白文字（モックアップ準拠）。
+/// 残高サマリー（PayPay の Half color background レイアウト）。
+///
+/// 上部にサービス色（ブルー）を敷き、最重要情報＝差引残高を大きく白で表示。
+/// 受け取る予定／返す予定は白カード（Low-Shadow）で下に重ねる。
 class BalanceCard extends StatelessWidget {
-  const BalanceCard({super.key, required this.summary});
+  const BalanceCard({super.key, required this.summary, this.topInset = 0});
 
   final BalanceSummary summary;
+
+  /// ステータスバー分などの上余白（背景色はその外側まで敷く）。
+  final double topInset;
 
   @override
   Widget build(BuildContext context) {
     final balance = summary.overallBalance;
+    final lentOutstanding = (summary.unpaidAmount + balance) ~/ 2;
+    final borrowedOutstanding = (summary.unpaidAmount - balance) ~/ 2;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.gradientStart, AppColors.gradientEnd],
+    return Stack(
+      children: [
+        // 背景色は画面上端まで。下 40px はカードと重なる。
+        Container(
+          height: topInset + 188,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppColors.gradientStart, AppColors.gradientEnd],
+            ),
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.gradientStart.withValues(alpha: 0.28),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'あなたの残高',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white.withValues(alpha: 0.85),
-            ),
-          ),
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  Formatters.signed(balance),
-                  style: const TextStyle(
-                    fontSize: 38,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '円',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, topInset + 20, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _sub('貸した総額', Formatters.yenSuffix(summary.lentTotal)),
+              Text(
+                balance == 0
+                    ? '差引残高なし'
+                    : balance > 0
+                    ? '差引で受け取る予定'
+                    : '差引で返す予定',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
               ),
-              Expanded(
-                child: _sub(
-                  '借りた総額',
-                  Formatters.yenSuffix(summary.borrowedTotal),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: YenAmount(
+                  amount: balance.abs(),
+                  prefix: balance > 0 ? '+' : (balance < 0 ? '-' : ''),
+                  fontSize: 44,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: AppColors.lowShadow,
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: IntrinsicHeight(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _sub(
+                          context,
+                          Icons.south_west_rounded,
+                          '受け取る予定',
+                          lentOutstanding,
+                          AppColors.lend,
+                        ),
+                      ),
+                      VerticalDivider(
+                        width: 1,
+                        color: Theme.of(context).dividerColor,
+                      ),
+                      Expanded(
+                        child: _sub(
+                          context,
+                          Icons.north_east_rounded,
+                          '返す予定',
+                          borrowedOutstanding,
+                          AppColors.borrow,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _sub(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withValues(alpha: 0.8),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Flexible(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerRight,
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+  Widget _sub(
+    BuildContext context,
+    IconData icon,
+    String label,
+    int value,
+    Color color,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 12, color: AppColors.textGray),
               ),
-            ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: YenAmount(amount: value, fontSize: 20, color: color),
+          ),
+        ],
+      ),
     );
   }
 }

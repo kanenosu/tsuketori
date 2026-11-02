@@ -6,6 +6,7 @@ import '../../models/person.dart';
 import '../../models/transaction_type.dart';
 import '../../state/app_state.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/yen_amount.dart';
 import '../../widgets/person_avatar_row.dart';
 import '../../widgets/type_segment.dart';
 import '../person/person_select_screen.dart';
@@ -146,9 +147,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           _label('相手'),
           Material(
             color: Theme.of(context).inputDecorationTheme.fillColor,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(8),
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(8),
               onTap: _pickPerson,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -174,9 +175,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             controller: _amountController,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700),
             decoration: InputDecoration(
-              prefixText: '¥ ',
+              suffixIcon: const YenSuffix(),
+              suffixIconConstraints: YenSuffix.constraints,
               errorText: _amountError,
             ),
             onChanged: (_) {
@@ -228,9 +230,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   Widget _tappable(String label, IconData icon, VoidCallback onTap) => Material(
     color: Theme.of(context).inputDecorationTheme.fillColor,
-    borderRadius: BorderRadius.circular(14),
+    borderRadius: BorderRadius.circular(8),
     child: InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(8),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

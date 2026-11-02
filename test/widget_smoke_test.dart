@@ -11,9 +11,7 @@ Future<void> pumpApp(WidgetTester tester) async {
   final settings = SettingsState();
   final appState = AppState(repository: AppRepository());
   await Future.wait([settings.load(), appState.load()]);
-  await tester.pumpWidget(
-    TsuketoriApp(settings: settings, appState: appState),
-  );
+  await tester.pumpWidget(TsuketoriApp(settings: settings, appState: appState));
   await tester.pumpAndSettle();
 }
 
@@ -21,8 +19,8 @@ void main() {
   testWidgets('ホーム画面が表示され、空状態を案内する', (tester) async {
     await pumpApp(tester);
 
-    expect(find.text('貸し借り'), findsOneWidget);
-    expect(find.text('あなたの残高'), findsOneWidget);
+    expect(find.text('ツケトリ'), findsOneWidget);
+    expect(find.text('差引残高なし'), findsOneWidget);
     expect(find.text('取引がまだありません'), findsOneWidget);
     // 下部タブ。
     expect(find.text('ホーム'), findsWidgets);
@@ -34,10 +32,10 @@ void main() {
   testWidgets('＋ボタンから新規取引画面へ遷移できる', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.widgetWithIcon(FloatingActionButton, Icons.add));
+    await tester.tap(find.byTooltip('新しい取引'));
     await tester.pumpAndSettle();
 
-    expect(find.text('新しい取引'), findsOneWidget);
+    expect(find.text('取引を追加'), findsOneWidget);
     expect(find.text('貸した'), findsWidgets);
     expect(find.text('借りた'), findsWidgets);
     await tester.scrollUntilVisible(
@@ -51,7 +49,7 @@ void main() {
   testWidgets('相手・金額未入力の保存でバリデーションエラーが出る', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.widgetWithIcon(FloatingActionButton, Icons.add));
+    await tester.tap(find.byTooltip('新しい取引'));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(

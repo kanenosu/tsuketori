@@ -20,9 +20,9 @@ class _PersonSelectScreenState extends State<PersonSelectScreen> {
   String _query = '';
 
   Future<void> _addNew() async {
-    final created = await Navigator.of(context).push<Person>(
-      MaterialPageRoute(builder: (_) => const PersonEditScreen()),
-    );
+    final created = await Navigator.of(
+      context,
+    ).push<Person>(MaterialPageRoute(builder: (_) => const PersonEditScreen()));
     if (created != null && mounted) {
       Navigator.of(context).pop(created);
     }
@@ -32,9 +32,10 @@ class _PersonSelectScreenState extends State<PersonSelectScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final query = _query.trim();
-    final people = appState.people
-        .where((p) => query.isEmpty || p.name.contains(query))
-        .toList();
+    final people =
+        appState.people
+            .where((p) => query.isEmpty || p.name.contains(query))
+            .toList();
     final recent = query.isEmpty ? appState.recentPeople() : const <Person>[];
 
     return Scaffold(
@@ -61,23 +62,24 @@ class _PersonSelectScreenState extends State<PersonSelectScreen> {
           ),
           const Divider(),
           Expanded(
-            child: people.isEmpty && recent.isEmpty
-                ? const EmptyState(
-                    icon: Icons.people_outline,
-                    title: '相手が登録されていません',
-                    message: '「新しい相手を追加」から登録しましょう。',
-                  )
-                : ListView(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    children: [
-                      if (recent.isNotEmpty) ...[
-                        _sectionHeader(context, '最近使った相手'),
-                        ...recent.map((p) => _personTile(context, p)),
-                        _sectionHeader(context, 'すべての相手'),
+            child:
+                people.isEmpty && recent.isEmpty
+                    ? const EmptyState(
+                      icon: Icons.people_outline,
+                      title: '相手が登録されていません',
+                      message: '「新しい相手を追加」から登録しましょう。',
+                    )
+                    : ListView(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      children: [
+                        if (recent.isNotEmpty) ...[
+                          _sectionHeader(context, '最近使った相手'),
+                          ...recent.map((p) => _personTile(context, p)),
+                          _sectionHeader(context, 'すべての相手'),
+                        ],
+                        ...people.map((p) => _personTile(context, p)),
                       ],
-                      ...people.map((p) => _personTile(context, p)),
-                    ],
-                  ),
+                    ),
           ),
         ],
       ),

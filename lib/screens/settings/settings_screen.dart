@@ -1,7 +1,13 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../state/app_state.dart';
 import '../../state/settings_state.dart';
+import '../../utils/formatters.dart';
 
 /// 設定画面（要件 6.9・モックアップ⑨準拠）。
 class SettingsScreen extends StatelessWidget {
@@ -37,12 +43,14 @@ class SettingsScreen extends StatelessWidget {
             _Row(
               icon: Icons.backup_outlined,
               title: 'データのバックアップ',
-              onTap: () => _comingSoon(context, 'データのバックアップ'),
+              subtitle: '暗号化されていないJSONファイルを書き出します',
+              onTap: () => _exportBackup(context),
             ),
             _Row(
               icon: Icons.restore,
               title: 'データの復元',
-              onTap: () => _comingSoon(context, 'データの復元'),
+              subtitle: '内容を検証・確認してから台帳を置き換えます',
+              onTap: () => _importBackup(context),
             ),
           ]),
           const SizedBox(height: 16),
@@ -104,35 +112,129 @@ class SettingsScreen extends StatelessWidget {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final mode in ThemeMode.values)
-              RadioListTile<ThemeMode>(
-                value: mode,
-                groupValue: settings.themeMode,
-                onChanged: (m) {
-                  settings.setThemeMode(m!);
-                  Navigator.of(ctx).pop();
-                },
-                title: Text(_themeLabel(mode)),
-                secondary: Icon(switch (mode) {
-                  ThemeMode.light => Icons.light_mode,
-                  ThemeMode.dark => Icons.dark_mode,
-                  ThemeMode.system => Icons.brightness_auto,
-                }),
-              ),
-          ],
-        ),
-      ),
+      builder:
+          (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final mode in ThemeMode.values)
+                  ListTile(
+                    leading: Icon(switch (mode) {
+                      ThemeMode.light => Icons.light_mode,
+                      ThemeMode.dark => Icons.dark_mode,
+                      ThemeMode.system => Icons.brightness_auto,
+                    }),
+                    title: Text(_themeLabel(mode)),
+                    trailing:
+                        settings.themeMode == mode
+                            ? const Icon(Icons.check, color: Colors.blue)
+                            : null,
+                    onTap: () {
+                      settings.setThemeMode(mode);
+                      Navigator.of(ctx).pop();
+                    },
+                  ),
+              ],
+            ),
+          ),
     );
   }
 
+  Future<void> _exportBackup(BuildContext context) async {
+    final appState = context.read<AppState>();
+    try {
+      final json = appState.createBackupJson();
+      final now = DateTime.now();
+      final date =
+          now.year.toString() +
+          now.month.toString().padLeft(2, '0') +
+          now.day.toString().padLeft(2, '0');
+      final uri = await FilePicker.saveFile(
+        dialogTitle: 'ツケトリのバックアップを保存',
+        fileName: 'tsuketori-backup-$date.json',
+        bytes: Uint8List.fromList(utf8.encode(json)),
+        mimeType: 'application/json',
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (uri != null && context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('バックアップを保存しました')));
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('バックアップを保存できませんでした')));
+    }
+  }
+
+  Future<void> _importBackup(BuildContext context) async {
+    final appState = context.read<AppState>();
+    try {
+      final file = await FilePicker.pickFile(
+        dialogTitle: 'ツケトリのバックアップを選択',
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 20 * 1024 * 1024) {
+        throw const FormatException('ファイルが大きすぎます');
+      }
+      final preview = appState.inspectBackup(utf8.decode(bytes));
+      if (!context.mounted) return;
+      final direction = preview.outstandingBalance < 0 ? '返す予定' : '受け取る予定';
+      final message =
+          '相手 ${preview.data.people.length}人、'
+          '取引 ${preview.data.transactions.length}件、'
+          '返済 ${preview.data.repayments.length}件\n'
+          '差引残高 ${Formatters.yenSuffix(preview.outstandingBalance.abs())}'
+          '（$direction）\n\n'
+          '現在の台帳をこの内容で置き換えます。よろしいですか？';
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder:
+            (dialogContext) => AlertDialog(
+              title: const Text('バックアップを復元'),
+              content: Text(message),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('キャンセル'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('復元する'),
+                ),
+              ],
+            ),
+      );
+      if (confirmed != true) return;
+      await appState.restoreBackup(preview);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('バックアップを復元しました')));
+      }
+    } on FormatException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('バックアップを読み取れませんでした')));
+    }
+  }
+
   void _comingSoon(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('「$label」は今後対応予定です')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('「$label」は今後対応予定です')));
   }
 
   void _showAbout(BuildContext context) {
@@ -140,9 +242,7 @@ class SettingsScreen extends StatelessWidget {
       context: context,
       applicationName: '貸し借り管理アプリ',
       applicationVersion: '1.0.0 (MVP)',
-      children: const [
-        Text('お金の貸し借りを、シンプルに、すぐに記録できるアプリです。'),
-      ],
+      children: const [Text('お金の貸し借りを、シンプルに、すぐに記録できるアプリです。')],
     );
   }
 }
@@ -152,12 +252,14 @@ class _Row extends StatelessWidget {
     required this.icon,
     required this.title,
     this.trailing,
+    this.subtitle,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String? trailing;
+  final String? subtitle;
   final VoidCallback onTap;
 
   @override
@@ -165,6 +267,7 @@ class _Row extends StatelessWidget {
     return ListTile(
       leading: Icon(icon),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: subtitle == null ? null : Text(subtitle!),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

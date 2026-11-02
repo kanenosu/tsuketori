@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tsuketori/models/person.dart';
+import 'package:tsuketori/models/repayment.dart';
+import 'package:tsuketori/models/transaction.dart';
 import 'package:tsuketori/models/transaction_status.dart';
 import 'package:tsuketori/models/transaction_type.dart';
 import 'package:tsuketori/repositories/app_repository.dart';
@@ -181,4 +186,94 @@ void main() {
     expect(reloaded.transactions, hasLength(1));
     expect(reloaded.summary().overallBalance, -3000);
   });
+
+  test('旧3キーの保存データを読み込み、次の更新で一体スナップショットへ移行する', () async {
+    final at = DateTime(2026, 1, 1);
+    final person = Person(
+      id: 'legacy-person',
+      name: '旧データ',
+      createdAt: at,
+      updatedAt: at,
+    );
+    final transaction = TransactionModel(
+      id: 'legacy-transaction',
+      personId: person.id,
+      type: TransactionType.lend,
+      amount: 5000,
+      date: at,
+      status: TransactionStatus.partial,
+      repaidAmount: 1000,
+      createdAt: at,
+      updatedAt: at,
+    );
+    final repayment = Repayment(
+      id: 'legacy-repayment',
+      transactionId: transaction.id,
+      amount: 1000,
+      date: at,
+      createdAt: at,
+    );
+    SharedPreferences.setMockInitialValues({
+      'tsuketori.people': jsonEncode([person.toJson()]),
+      'tsuketori.transactions': jsonEncode([transaction.toJson()]),
+      'tsuketori.repayments': jsonEncode([repayment.toJson()]),
+    });
+
+    final migrated = AppState(repository: AppRepository());
+    await migrated.load();
+    expect(migrated.people.single.name, '旧データ');
+    expect(migrated.transaction(transaction.id)!.remainingAmount, 4000);
+
+    await migrated.addPerson(name: '新データ');
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('tsuketori.snapshot.v2'), isNotEmpty);
+
+    final reloaded = AppState(repository: AppRepository());
+    await reloaded.load();
+    expect(
+      reloaded.allPeople.map((p) => p.name),
+      containsAll(['旧データ', '新データ']),
+    );
+    expect(reloaded.repaymentsForTransaction(transaction.id), hasLength(1));
+  });
+
+  test('保存に失敗した変更はメモリ上にも残さない', () async {
+    final repository = _ToggleFailingRepository();
+    final protectedState = AppState(repository: repository);
+    await protectedState.load();
+    final person = await protectedState.addPerson(name: '保護対象');
+    final transaction = await protectedState.addTransaction(
+      personId: person.id,
+      type: TransactionType.borrow,
+      amount: 3000,
+      date: DateTime(2026, 1, 1),
+    );
+    repository.shouldFail = true;
+
+    await expectLater(
+      protectedState.addRepayment(
+        transactionId: transaction.id,
+        amount: 1000,
+        date: DateTime(2026, 1, 2),
+      ),
+      throwsStateError,
+    );
+
+    expect(protectedState.repaymentsForTransaction(transaction.id), isEmpty);
+    expect(protectedState.transaction(transaction.id)!.repaidAmount, 0);
+    expect(
+      protectedState.transaction(transaction.id)!.status,
+      TransactionStatus.unpaid,
+    );
+  });
+}
+
+class _ToggleFailingRepository extends AppRepository {
+  bool shouldFail = false;
+
+  @override
+  Future<void> saveAll(AppData data) {
+    if (shouldFail) throw StateError('test failure');
+    return super.saveAll(data);
+  }
 }

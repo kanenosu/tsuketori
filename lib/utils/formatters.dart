@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 class Formatters {
   const Formatters._();
 
-  static final NumberFormat _yen = NumberFormat('#,##0', 'ja_JP');
+  static final NumberFormat _yen = NumberFormat('#,##0');
 
   /// 3桁ごとにカンマを付けた金額文字列（記号なし）。例: 5000 -> "5,000"。
   static String number(int amount) => _yen.format(amount);
@@ -22,12 +22,11 @@ class Formatters {
     return _yen.format(0);
   }
 
-  static final DateFormat _date = DateFormat('yyyy/MM/dd', 'ja_JP');
-  static final DateFormat _dateShort = DateFormat('MM/dd', 'ja_JP');
-  static final DateFormat _month = DateFormat('yyyy年MM月', 'ja_JP');
-  static final DateFormat _monthLabel = DateFormat('yyyy年M月', 'ja_JP');
-  static final DateFormat _dateTime = DateFormat('yyyy/MM/dd HH:mm', 'ja_JP');
-  static final DateFormat _longDate = DateFormat('yyyy年M月d日（E）', 'ja_JP');
+  static final DateFormat _date = DateFormat('yyyy/MM/dd');
+  static final DateFormat _dateShort = DateFormat('MM/dd');
+  static final DateFormat _month = DateFormat('yyyy年MM月');
+  static final DateFormat _monthLabel = DateFormat('yyyy年M月');
+  static final DateFormat _dateTime = DateFormat('yyyy/MM/dd HH:mm');
 
   static String date(DateTime d) => _date.format(d);
 
@@ -41,7 +40,10 @@ class Formatters {
   static String dateTime(DateTime d) => _dateTime.format(d);
 
   /// 「2024年5月9日（木）」形式。
-  static String longDate(DateTime d) => _longDate.format(d);
+  static String longDate(DateTime d) {
+    const weekdays = ['月', '火', '水', '木', '金', '土', '日'];
+    return '${d.year}年${d.month}月${d.day}日（${weekdays[d.weekday - 1]}）';
+  }
 
   /// 「今日」「昨日」「N日前」「N週間前」などの相対表記。
   static String relative(DateTime d, {DateTime? now}) {

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// すべて／貸した／借りた のようなピル型トグル（モックアップのタブ）。
+/// すべて／貸した／借りた の切替（PayPay の Select Button）。
 ///
-/// グレーのトラックの中で、選択項目が白いピルとして浮き上がる。
+/// 高さ 30・角丸 15。選択は塗り＋白文字、非選択は白背景＋1px #BABABA。
 class PillTabs extends StatelessWidget {
   const PillTabs({
     super.key,
@@ -21,56 +21,67 @@ class PillTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final trackColor =
-        isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFEDF1F6);
-    final pillColor = isDark ? const Color(0xFF2A2E35) : Colors.white;
+    final surface = Theme.of(context).colorScheme.surface;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (var i = 0; i < labels.length; i++)
+          _SelectButton(
+            label: labels[i],
+            selected: i == selectedIndex,
+            selectedColor: selectedColor,
+            surface: surface,
+            onTap: () => onChanged(i),
+          ),
+      ],
+    );
+  }
+}
 
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: trackColor,
-        borderRadius: BorderRadius.circular(14),
+class _SelectButton extends StatelessWidget {
+  const _SelectButton({
+    required this.label,
+    required this.selected,
+    required this.selectedColor,
+    required this.surface,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final Color selectedColor;
+  final Color surface;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? selectedColor : surface,
+      shape: StadiumBorder(
+        side:
+            selected
+                ? BorderSide.none
+                : const BorderSide(color: AppColors.placeholder),
       ),
-      child: Row(
-        children: [
-          for (var i = 0; i < labels.length; i++)
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => onChanged(i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  decoration: BoxDecoration(
-                    color: i == selectedIndex ? pillColor : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: i == selectedIndex && !isDark
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    labels[i],
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: i == selectedIndex
-                          ? selectedColor
-                          : Theme.of(context).hintColor,
-                    ),
-                  ),
-                ),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: Container(
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : AppColors.subtextGray,
               ),
             ),
-        ],
+          ),
+        ),
       ),
     );
   }

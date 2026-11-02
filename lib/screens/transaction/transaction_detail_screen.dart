@@ -8,6 +8,7 @@ import '../../theme/status_style.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/person_avatar.dart';
 import '../../widgets/status_badge.dart';
+import '../receipt/receipt_preview_screen.dart';
 import '../repayment/repayment_screen.dart';
 import 'edit_transaction_screen.dart';
 
@@ -41,6 +42,17 @@ class TransactionDetailScreen extends StatelessWidget {
         title: const Text('取引の詳細'),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: '取引記録を共有',
+            icon: const Icon(Icons.ios_share),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ReceiptPreviewScreen(transactionId: tx.id),
+                ),
+              );
+            },
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_horiz),
             onSelected: (v) {
@@ -52,12 +64,21 @@ class TransactionDetailScreen extends StatelessWidget {
                 );
               } else if (v == 'delete') {
                 _confirmDelete(context, appState);
+              } else if (v == 'cancel') {
+                _confirmCancel(context, appState, tx.id);
+              } else if (v == 'restore') {
+                appState.restoreCancelledTransaction(tx.id);
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('編集する')),
-              PopupMenuItem(value: 'delete', child: Text('削除する')),
-            ],
+            itemBuilder:
+                (_) => [
+                  const PopupMenuItem(value: 'edit', child: Text('編集する')),
+                  PopupMenuItem(
+                    value: tx.isCancelled ? 'restore' : 'cancel',
+                    child: Text(tx.isCancelled ? '取消を元に戻す' : '取引を取り消す'),
+                  ),
+                  const PopupMenuItem(value: 'delete', child: Text('完全に削除する')),
+                ],
           ),
         ],
       ),
@@ -94,7 +115,7 @@ class TransactionDetailScreen extends StatelessWidget {
                 '${isLend ? '+' : '-'}${Formatters.yenSuffix(tx.amount)}',
                 style: TextStyle(
                   fontSize: 34,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: typeColor,
                 ),
               ),
@@ -132,9 +153,10 @@ class TransactionDetailScreen extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(999),
                       child: LinearProgressIndicator(
-                        value: tx.amount == 0
-                            ? 0
-                            : (tx.repaidAmount / tx.amount).clamp(0.0, 1.0),
+                        value:
+                            tx.amount == 0
+                                ? 0
+                                : (tx.repaidAmount / tx.amount).clamp(0.0, 1.0),
                         minHeight: 8,
                         backgroundColor: typeColor.withValues(alpha: 0.12),
                         valueColor: AlwaysStoppedAnimation(typeColor),
@@ -154,12 +176,12 @@ class TransactionDetailScreen extends StatelessWidget {
                 _infoRow(
                   context,
                   '返済予定日',
-                  value: tx.dueDate == null
-                      ? '未設定'
-                      : Formatters.longDate(tx.dueDate!),
-                  valueColor: tx.isOverdue()
-                      ? StatusStyle.statusColor(status)
-                      : null,
+                  value:
+                      tx.dueDate == null
+                          ? '未設定'
+                          : Formatters.longDate(tx.dueDate!),
+                  valueColor:
+                      tx.isOverdue() ? StatusStyle.statusColor(status) : null,
                 ),
                 if (tx.memo != null && tx.memo!.isNotEmpty) ...[
                   const Divider(height: 1),
@@ -167,8 +189,10 @@ class TransactionDetailScreen extends StatelessWidget {
                 ],
                 const Divider(height: 1),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       SizedBox(
@@ -202,7 +226,7 @@ class TransactionDetailScreen extends StatelessWidget {
               children: [
                 const Text(
                   '返済履歴',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
                 Text(
@@ -212,68 +236,74 @@ class TransactionDetailScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            ...repayments.map((r) => _RepaymentTile(
-                  repayment: r,
-                  onDelete: () => appState.deleteRepayment(r.id),
-                )),
+            ...repayments.map(
+              (r) => _RepaymentTile(
+                repayment: r,
+                onDelete: () => appState.deleteRepayment(r.id),
+              ),
+            ),
           ],
         ],
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: canRepay
-              ? Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(52),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  EditTransactionScreen(transactionId: tx.id),
+          child:
+              canRepay
+                  ? Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          );
-                        },
-                        child: const Text('編集する'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: typeColor,
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => EditTransactionScreen(
+                                      transactionId: tx.id,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: const Text('編集する'),
                         ),
-                        onPressed: () =>
-                            _showRepayMenu(context, appState, tx.id),
-                        child: const Text('返済を記録する'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: typeColor,
+                          ),
+                          onPressed:
+                              () => _showRepayMenu(context, appState, tx.id),
+                          child: const Text('返済を記録する'),
+                        ),
+                      ),
+                    ],
+                  )
+                  : OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                  ],
-                )
-              : OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (_) =>
+                                  EditTransactionScreen(transactionId: tx.id),
+                        ),
+                      );
+                    },
+                    child: const Text('編集する'),
                   ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            EditTransactionScreen(transactionId: tx.id),
-                      ),
-                    );
-                  },
-                  child: const Text('編集する'),
-                ),
         ),
       ),
     );
@@ -290,71 +320,108 @@ class TransactionDetailScreen extends StatelessWidget {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.done_all, color: Colors.green),
-              title: const Text('返済済みにする'),
-              subtitle: Text('残額 ${Formatters.yenSuffix(tx.remainingAmount)} を全額返済'),
-              onTap: () async {
-                Navigator.of(ctx).pop();
-                await appState.addRepayment(
-                  transactionId: txId,
-                  amount: tx.remainingAmount,
-                  date: DateTime.now(),
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('返済済みにしました')),
-                  );
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.payments_outlined),
-              title: const Text('一部返済を記録する'),
-              subtitle: const Text('金額・返済方法・日付を指定'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => RepaymentScreen(transactionId: txId),
+      builder:
+          (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.done_all, color: Colors.green),
+                  title: const Text('返済済みにする'),
+                  subtitle: Text(
+                    '残額 ${Formatters.yenSuffix(tx.remainingAmount)} を全額返済',
                   ),
-                );
-              },
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    await appState.addRepayment(
+                      transactionId: txId,
+                      amount: tx.remainingAmount,
+                      date: DateTime.now(),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('返済済みにしました')),
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.payments_outlined),
+                  title: const Text('一部返済を記録する'),
+                  subtitle: const Text('金額・返済方法・日付を指定'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => RepaymentScreen(transactionId: txId),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
   Future<void> _confirmDelete(BuildContext context, AppState appState) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('取引を削除'),
-        content: const Text('この取引を削除しますか？削除した取引は元に戻せません。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('キャンセル'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('取引を削除'),
+            content: const Text('この取引を削除しますか？削除した取引は元に戻せません。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                ),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('削除する'),
+              ),
+            ],
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('削除する'),
-          ),
-        ],
-      ),
     );
     if (ok == true && context.mounted) {
       await appState.deleteTransaction(transactionId);
       if (context.mounted) Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _confirmCancel(
+    BuildContext context,
+    AppState appState,
+    String txId,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('取引を取り消す'),
+            content: const Text('履歴は残したまま、残高の計算対象から外します。あとで元に戻せます。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('取り消す'),
+              ),
+            ],
+          ),
+    );
+    if (ok == true) {
+      await appState.cancelTransaction(txId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('取引を取り消しました')));
+      }
     }
   }
 
@@ -383,10 +450,7 @@ class TransactionDetailScreen extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: valueColor,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, color: valueColor),
             ),
           ),
         ],
@@ -427,20 +491,21 @@ class _RepaymentTile extends StatelessWidget {
           onPressed: () async {
             final ok = await showDialog<bool>(
               context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('返済記録を削除'),
-                content: const Text('この返済記録を削除しますか？'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                    child: const Text('キャンセル'),
+              builder:
+                  (ctx) => AlertDialog(
+                    title: const Text('返済記録を削除'),
+                    content: const Text('この返済記録を削除しますか？'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('キャンセル'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        child: const Text('削除'),
+                      ),
+                    ],
                   ),
-                  FilledButton(
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                    child: const Text('削除'),
-                  ),
-                ],
-              ),
             );
             if (ok == true) onDelete();
           },

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/repayment.dart';
 import '../../state/app_state.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/yen_amount.dart';
 import '../transaction/new_transaction_screen.dart';
 
 /// 返済登録画面（要件 6.3.4 / 6.4）。
@@ -66,9 +67,10 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
         amount: amount,
         date: _date,
         method: _method,
-        memo: _memoController.text.trim().isEmpty
-            ? null
-            : _memoController.text.trim(),
+        memo:
+            _memoController.text.trim().isEmpty
+                ? null
+                : _memoController.text.trim(),
       );
       if (mounted) Navigator.of(context).pop();
     } on ArgumentError catch (e) {
@@ -112,7 +114,7 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
                     Formatters.yenSuffix(remaining),
                     style: const TextStyle(
                       fontSize: 28,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -125,9 +127,10 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
             controller: _amountController,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700),
             decoration: InputDecoration(
-              prefixText: '¥ ',
+              suffixIcon: const YenSuffix(),
+              suffixIconConstraints: YenSuffix.constraints,
               hintText: '0',
               errorText: _amountError,
             ),
@@ -154,9 +157,9 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
           _label('返済日'),
           Material(
             color: Theme.of(context).inputDecorationTheme.fillColor,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(8),
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(8),
               onTap: _pickDate,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -178,14 +181,15 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: RepaymentMethod.values.map((m) {
-              return ChoiceChip(
-                label: Text(m.label),
-                selected: _method == m,
-                onSelected: (sel) =>
-                    setState(() => _method = sel ? m : null),
-              );
-            }).toList(),
+            children:
+                RepaymentMethod.values.map((m) {
+                  return ChoiceChip(
+                    label: Text(m.label),
+                    selected: _method == m,
+                    onSelected:
+                        (sel) => setState(() => _method = sel ? m : null),
+                  );
+                }).toList(),
           ),
           const SizedBox(height: 20),
           _label('メモ（任意）'),
@@ -197,22 +201,21 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
           const SizedBox(height: 28),
           FilledButton(
             onPressed: _saving ? null : () => _save(remaining),
-            child: _saving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('返済を保存する'),
+            child:
+                _saving
+                    ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Text('返済を保存する'),
           ),
           const SizedBox(height: 12),
           // 残額を超える精算は別取引で（要件 6.4.4）。
           TextButton.icon(
             onPressed: () {
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => const NewTransactionScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const NewTransactionScreen()),
               );
             },
             icon: const Icon(Icons.add),

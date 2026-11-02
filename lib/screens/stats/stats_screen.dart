@@ -27,9 +27,10 @@ class _StatsScreenState extends State<StatsScreen> {
 
   void _shift(int delta) {
     setState(() {
-      _anchor = _monthly
-          ? DateTime(_anchor.year, _anchor.month + delta)
-          : DateTime(_anchor.year + delta, _anchor.month);
+      _anchor =
+          _monthly
+              ? DateTime(_anchor.year, _anchor.month + delta)
+              : DateTime(_anchor.year + delta, _anchor.month);
     });
   }
 
@@ -47,18 +48,21 @@ class _StatsScreenState extends State<StatsScreen> {
     final summary = appState.summary(txs);
     final balance = summary.lentTotal - summary.borrowedTotal;
 
-    final lendCount = txs
-        .where((t) => !t.isCancelled && t.type == TransactionType.lend)
-        .length;
-    final borrowCount = txs
-        .where((t) => !t.isCancelled && t.type == TransactionType.borrow)
-        .length;
+    final lendCount =
+        txs
+            .where((t) => !t.isCancelled && t.type == TransactionType.lend)
+            .length;
+    final borrowCount =
+        txs
+            .where((t) => !t.isCancelled && t.type == TransactionType.borrow)
+            .length;
 
-    final personBalances = appState.people
-        .map((p) => (p, appState.balanceForPerson(p.id).diff))
-        .where((e) => e.$2 != 0)
-        .toList()
-      ..sort((a, b) => b.$2.abs().compareTo(a.$2.abs()));
+    final personBalances =
+        appState.people
+            .map((p) => (p, appState.balanceForPerson(p.id).diff))
+            .where((e) => e.$2 != 0)
+            .toList()
+          ..sort((a, b) => b.$2.abs().compareTo(a.$2.abs()));
 
     return Scaffold(
       appBar: AppBar(title: const Text('統計'), centerTitle: true),
@@ -83,12 +87,10 @@ class _StatsScreenState extends State<StatsScreen> {
                 onPressed: () => _shift(-1),
               ),
               Text(
-                _monthly
-                    ? Formatters.monthLabel(_anchor)
-                    : '${_anchor.year}年',
+                _monthly ? Formatters.monthLabel(_anchor) : '${_anchor.year}年',
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               IconButton(
@@ -106,7 +108,7 @@ class _StatsScreenState extends State<StatsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '収支',
+                    '期間内の取引差額',
                     style: TextStyle(color: Theme.of(context).hintColor),
                   ),
                   const SizedBox(height: 4),
@@ -114,7 +116,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     '${Formatters.signed(balance)}円',
                     style: TextStyle(
                       fontSize: 30,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: balance >= 0 ? AppColors.lend : AppColors.borrow,
                     ),
                   ),
@@ -122,12 +124,12 @@ class _StatsScreenState extends State<StatsScreen> {
                   Row(
                     children: [
                       _metric(
-                        '貸した総額',
+                        '貸した取引総額',
                         Formatters.yenSuffix(summary.lentTotal),
                         AppColors.lend,
                       ),
                       _metric(
-                        '借りた総額',
+                        '借りた取引総額',
                         Formatters.yenSuffix(summary.borrowedTotal),
                         AppColors.borrow,
                       ),
@@ -162,11 +164,10 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            '相手ごとの残高',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w800),
+            '現在の相手別残高（全期間）',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           if (personBalances.isEmpty)
@@ -189,16 +190,12 @@ class _StatsScreenState extends State<StatsScreen> {
                   title: Text(person.name),
                   trailing: Text(
                     '${Formatters.signed(diff)}円',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700, color: color),
                   ),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            PersonDetailScreen(personId: person.id),
+                        builder: (_) => PersonDetailScreen(personId: person.id),
                       ),
                     );
                   },
@@ -227,7 +224,7 @@ class _StatsScreenState extends State<StatsScreen> {
               value,
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 color: color,
               ),
             ),

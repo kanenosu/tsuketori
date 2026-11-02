@@ -23,12 +23,19 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   HistoryQuery _query = const HistoryQuery();
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   int get _typeTab => switch (_query.typeFilter) {
-        HistoryTypeFilter.all => 0,
-        HistoryTypeFilter.lend => 1,
-        HistoryTypeFilter.borrow => 2,
-      };
+    HistoryTypeFilter.all => 0,
+    HistoryTypeFilter.lend => 1,
+    HistoryTypeFilter.borrow => 2,
+  };
 
   Future<void> _openFilter() async {
     final result = await Navigator.of(context).push<HistoryQuery>(
@@ -63,64 +70,99 @@ class _HistoryScreenState extends State<HistoryScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: PillTabs(
-              labels: const ['すべて', '貸した', '借りた'],
-              selectedIndex: _typeTab,
-              selectedColor: _typeTab == 2
-                  ? StatusStyle.typeColor(TransactionType.borrow)
-                  : StatusStyle.typeColor(TransactionType.lend),
-              onChanged: (i) => setState(() {
-                _query = _query.copyWith(
-                  typeFilter: switch (i) {
-                    1 => HistoryTypeFilter.lend,
-                    2 => HistoryTypeFilter.borrow,
-                    _ => HistoryTypeFilter.all,
-                  },
-                );
-              }),
+            child: Column(
+              children: [
+                SearchBar(
+                  controller: _searchController,
+                  hintText: '相手・メモ・金額で検索',
+                  leading: const Icon(Icons.search),
+                  trailing:
+                      _query.text.isEmpty
+                          ? null
+                          : [
+                            IconButton(
+                              tooltip: '検索をクリア',
+                              icon: const Icon(Icons.close),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(
+                                  () => _query = _query.copyWith(text: ''),
+                                );
+                              },
+                            ),
+                          ],
+                  onChanged:
+                      (value) =>
+                          setState(() => _query = _query.copyWith(text: value)),
+                ),
+                const SizedBox(height: 12),
+                PillTabs(
+                  labels: const ['すべて', '貸した', '借りた'],
+                  selectedIndex: _typeTab,
+                  selectedColor:
+                      _typeTab == 2
+                          ? StatusStyle.typeColor(TransactionType.borrow)
+                          : StatusStyle.typeColor(TransactionType.lend),
+                  onChanged:
+                      (i) => setState(() {
+                        _query = _query.copyWith(
+                          typeFilter: switch (i) {
+                            1 => HistoryTypeFilter.lend,
+                            2 => HistoryTypeFilter.borrow,
+                            _ => HistoryTypeFilter.all,
+                          },
+                        );
+                      }),
+                ),
+              ],
             ),
           ),
           Expanded(
-            child: results.isEmpty
-                ? const EmptyState(
-                    icon: Icons.search_off,
-                    title: '該当する取引がありません',
-                    message: 'フィルターの条件を変えてみてください。',
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    children: [
-                      for (final entry in grouped.entries) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-                          child: Text(
-                            entry.key,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Theme.of(context).hintColor,
+            child:
+                results.isEmpty
+                    ? const EmptyState(
+                      icon: Icons.search_off,
+                      title: '該当する取引がありません',
+                      message: 'フィルターの条件を変えてみてください。',
+                    )
+                    : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      children: [
+                        for (final entry in grouped.entries) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+                            child: Text(
+                              entry.key,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(context).hintColor,
+                              ),
                             ),
                           ),
-                        ),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < entry.value.length; i++) ...[
-                                  if (i > 0) const Divider(height: 1),
-                                  _HistoryRow(transaction: entry.value[i]),
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              child: Column(
+                                children: [
+                                  for (
+                                    var i = 0;
+                                    i < entry.value.length;
+                                    i++
+                                  ) ...[
+                                    if (i > 0) const Divider(height: 1),
+                                    _HistoryRow(transaction: entry.value[i]),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
-                  ),
+                    ),
           ),
         ],
       ),
@@ -152,7 +194,7 @@ class _HistoryRow extends StatelessWidget {
     final isLend = tx.type == TransactionType.lend;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -200,7 +242,7 @@ class _HistoryRow extends StatelessWidget {
               '${isLend ? '+' : '-'}${Formatters.yenSuffix(tx.amount)}',
               style: TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 color: typeColor,
               ),
             ),

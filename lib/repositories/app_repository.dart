@@ -6,7 +6,6 @@ import '../models/person.dart';
 import '../models/repayment.dart';
 import '../models/transaction.dart';
 
-/// アプリのデータ一式。
 class AppData {
   const AppData({
     required this.people,
@@ -22,77 +21,122 @@ class AppData {
   final List<Person> people;
   final List<TransactionModel> transactions;
   final List<Repayment> repayments;
+
+  Map<String, dynamic> toJson() => {
+    'people': people.map((item) => item.toJson()).toList(),
+    'transactions': transactions.map((item) => item.toJson()).toList(),
+    'repayments': repayments.map((item) => item.toJson()).toList(),
+  };
+
+  factory AppData.fromJson(Map<String, dynamic> json) => AppData(
+    people: _maps(json['people']).map(Person.fromJson).toList(),
+    transactions:
+        _maps(json['transactions']).map(TransactionModel.fromJson).toList(),
+    repayments: _maps(json['repayments']).map(Repayment.fromJson).toList(),
+  );
+
+  static List<Map<String, dynamic>> _maps(Object? value) {
+    if (value is! List) throw const FormatException('一覧データが不正です');
+    return value.map((item) {
+      if (item is! Map) throw const FormatException('項目データが不正です');
+      return Map<String, dynamic>.from(item);
+    }).toList();
+  }
 }
 
-/// ローカル永続化（要件 12.3：初期リリースはローカル保存を基本とする）。
+/// Local persistence for the ledger.
 ///
-/// MVP では `shared_preferences` に JSON 文字列として保存する。
-/// 将来的に SQLite / 暗号化 / クラウド同期へ差し替えられるよう、
-/// 画面・状態層からはこのインターフェース経由でのみアクセスする。
+/// Current releases store one complete JSON snapshot so related changes are
+/// committed together. The three legacy keys are still read to avoid losing
+/// data created by older builds.
 class AppRepository {
   AppRepository({SharedPreferences? preferences}) : _prefs = preferences;
 
+  static const _snapshotKey = 'tsuketori.snapshot.v2';
   static const _peopleKey = 'tsuketori.people';
   static const _transactionsKey = 'tsuketori.transactions';
   static const _repaymentsKey = 'tsuketori.repayments';
 
   SharedPreferences? _prefs;
 
-  Future<SharedPreferences> get _preferences async {
-    return _prefs ??= await SharedPreferences.getInstance();
-  }
+  Future<SharedPreferences> get _preferences async =>
+      _prefs ??= await SharedPreferences.getInstance();
 
   Future<AppData> load() async {
     final prefs = await _preferences;
-
-    final people =
-        _decodeList(prefs.getString(_peopleKey))
-            .map(Person.fromJson)
-            .toList();
-    final transactions =
-        _decodeList(prefs.getString(_transactionsKey))
-            .map(TransactionModel.fromJson)
-            .toList();
-    final repayments =
-        _decodeList(prefs.getString(_repaymentsKey))
-            .map(Repayment.fromJson)
-            .toList();
+    final snapshot = prefs.getString(_snapshotKey);
+    if (snapshot != null && snapshot.isNotEmpty) {
+      final decoded = jsonDecode(snapshot);
+      if (decoded is! Map) throw const FormatException('保存データが不正です');
+      return AppData.fromJson(Map<String, dynamic>.from(decoded));
+    }
 
     return AppData(
-      people: people,
-      transactions: transactions,
-      repayments: repayments,
+      people:
+          _decodeLegacy(
+            prefs.getString(_peopleKey),
+          ).map(Person.fromJson).toList(),
+      transactions:
+          _decodeLegacy(
+            prefs.getString(_transactionsKey),
+          ).map(TransactionModel.fromJson).toList(),
+      repayments:
+          _decodeLegacy(
+            prefs.getString(_repaymentsKey),
+          ).map(Repayment.fromJson).toList(),
     );
   }
 
-  Future<void> savePeople(List<Person> people) async {
+  Future<void> saveAll(AppData data) async {
     final prefs = await _preferences;
-    await prefs.setString(
-      _peopleKey,
-      jsonEncode(people.map((p) => p.toJson()).toList()),
+    final saved = await prefs.setString(
+      _snapshotKey,
+      jsonEncode(data.toJson()),
+    );
+    if (!saved) throw StateError('台帳を保存できませんでした');
+  }
+
+  /// Legacy-compatible narrow saves. New code should prefer [saveAll].
+  Future<void> savePeople(List<Person> people) async {
+    final current = await load();
+    await saveAll(
+      AppData(
+        people: people,
+        transactions: current.transactions,
+        repayments: current.repayments,
+      ),
     );
   }
 
   Future<void> saveTransactions(List<TransactionModel> transactions) async {
-    final prefs = await _preferences;
-    await prefs.setString(
-      _transactionsKey,
-      jsonEncode(transactions.map((t) => t.toJson()).toList()),
+    final current = await load();
+    await saveAll(
+      AppData(
+        people: current.people,
+        transactions: transactions,
+        repayments: current.repayments,
+      ),
     );
   }
 
   Future<void> saveRepayments(List<Repayment> repayments) async {
-    final prefs = await _preferences;
-    await prefs.setString(
-      _repaymentsKey,
-      jsonEncode(repayments.map((r) => r.toJson()).toList()),
+    final current = await load();
+    await saveAll(
+      AppData(
+        people: current.people,
+        transactions: current.transactions,
+        repayments: repayments,
+      ),
     );
   }
 
-  List<Map<String, dynamic>> _decodeList(String? raw) {
+  List<Map<String, dynamic>> _decodeLegacy(String? raw) {
     if (raw == null || raw.isEmpty) return const [];
     final decoded = jsonDecode(raw);
-    if (decoded is! List) return const [];
-    return decoded.cast<Map<String, dynamic>>();
+    if (decoded is! List) throw const FormatException('保存データが不正です');
+    return decoded.map((item) {
+      if (item is! Map) throw const FormatException('保存データが不正です');
+      return Map<String, dynamic>.from(item);
+    }).toList();
   }
 }

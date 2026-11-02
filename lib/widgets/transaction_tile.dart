@@ -4,11 +4,14 @@ import '../models/person.dart';
 import '../models/transaction.dart';
 import '../models/transaction_status.dart';
 import '../models/transaction_type.dart';
+import '../theme/app_colors.dart';
 import '../theme/status_style.dart';
 import '../utils/formatters.dart';
 import 'person_avatar.dart';
+import 'status_badge.dart';
+import 'yen_amount.dart';
 
-/// 取引一覧の1行（要件 6.1.2・モックアップ準拠）。
+/// 取引一覧の1行（PayPay の Regular List・複数行）。
 class TransactionTile extends StatelessWidget {
   const TransactionTile({
     super.key,
@@ -26,26 +29,23 @@ class TransactionTile extends StatelessWidget {
     final tx = transaction;
     final typeColor = StatusStyle.typeColor(tx.type);
     final status = tx.effectiveStatus();
-    final theme = Theme.of(context);
     final isLend = tx.type == TransactionType.lend;
 
     // 返済待ち以外（一部返済・返済済み・期限超過）はステータスを、
-    // それ以外は種別を色付きバッジで示す。
-    final showStatus = status != TransactionStatus.unpaid &&
+    // それ以外は種別を Status Label で示す。
+    final showStatus =
+        status != TransactionStatus.unpaid &&
         status != TransactionStatus.cancelled;
     final badgeLabel = showStatus ? status.label : tx.type.label;
-    final badgeColor = showStatus
-        ? StatusStyle.statusColor(status)
-        : typeColor;
+    final badgeColor = showStatus ? StatusStyle.statusColor(status) : typeColor;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         child: Row(
           children: [
-            PersonAvatar(person: person, radius: 22),
+            PersonAvatar(person: person, radius: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -54,16 +54,17 @@ class TransactionTile extends StatelessWidget {
                   Text(
                     person?.name ?? '(不明な相手)',
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     '${tx.type.label}・${Formatters.relative(tx.date)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.hintColor,
+                    style: const TextStyle(
+                      color: AppColors.subtextGray,
                       fontSize: 12,
                     ),
                   ),
@@ -74,32 +75,17 @@ class TransactionTile extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '${isLend ? '+' : '-'}${Formatters.yenSuffix(tx.amount)}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: typeColor,
-                  ),
+                YenAmount(
+                  amount: tx.amount,
+                  prefix: isLend ? '+' : '-',
+                  fontSize: 18,
+                  color: typeColor,
                 ),
-                const SizedBox(height: 5),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    badgeLabel,
-                    style: TextStyle(
-                      color: badgeColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                const SizedBox(height: 4),
+                StatusLabel(
+                  label: badgeLabel,
+                  color: badgeColor,
+                  compact: true,
                 ),
               ],
             ),
