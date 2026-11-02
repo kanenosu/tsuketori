@@ -8,6 +8,7 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/person_avatar.dart';
 import 'person_detail_screen.dart';
 import 'person_edit_screen.dart';
+import '../../widgets/surface_card.dart';
 
 /// 相手一覧画面（要件 6.5.1・モックアップ⑤準拠）。
 class PersonListScreen extends StatefulWidget {
@@ -66,9 +67,9 @@ class _PersonListScreenState extends State<PersonListScreen> {
                       message: '右上の＋から相手を追加できます。',
                     )
                     : ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                       children: [
-                        Card(
+                        SurfaceCard(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -77,7 +78,8 @@ class _PersonListScreenState extends State<PersonListScreen> {
                             child: Column(
                               children: [
                                 for (var i = 0; i < people.length; i++) ...[
-                                  if (i > 0) const Divider(height: 1),
+                                  if (i > 0)
+                                    const Divider(height: 1, indent: 60),
                                   _PersonRow(personId: people[i].id),
                                 ],
                               ],
@@ -88,15 +90,6 @@ class _PersonListScreenState extends State<PersonListScreen> {
                     ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'person_fab',
-        onPressed: () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const PersonEditScreen()));
-        },
-        child: const Icon(Icons.person_add),
       ),
     );
   }

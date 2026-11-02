@@ -14,7 +14,13 @@ import 'transaction_detail_screen.dart';
 
 /// 新規取引登録画面（要件 6.2・モックアップ準拠）。
 class NewTransactionScreen extends StatefulWidget {
-  const NewTransactionScreen({super.key});
+  const NewTransactionScreen({super.key, this.initialType, this.initialPerson});
+
+  /// ホームのメニューから開いたときの初期種別。
+  final TransactionType? initialType;
+
+  /// 相手の画面から開いたときの初期相手。
+  final Person? initialPerson;
 
   @override
   State<NewTransactionScreen> createState() => _NewTransactionScreenState();
@@ -35,7 +41,8 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   @override
   void initState() {
     super.initState();
-    _type = context.read<AppState>().lastUsedType;
+    _type = widget.initialType ?? context.read<AppState>().lastUsedType;
+    _person = widget.initialPerson;
   }
 
   @override

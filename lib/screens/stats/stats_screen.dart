@@ -9,6 +9,7 @@ import '../../utils/formatters.dart';
 import '../../widgets/person_avatar.dart';
 import '../../widgets/pill_tabs.dart';
 import '../person/person_detail_screen.dart';
+import '../../widgets/surface_card.dart';
 
 /// 統計画面（要件 6.7・モックアップ⑧準拠）。
 class StatsScreen extends StatefulWidget {
@@ -101,7 +102,7 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           const SizedBox(height: 8),
           // 収支カード。
-          Card(
+          SurfaceCard(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -141,7 +142,7 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           const SizedBox(height: 12),
           // 取引件数カード。
-          Card(
+          SurfaceCard(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -183,7 +184,7 @@ class _StatsScreenState extends State<StatsScreen> {
               final person = e.$1;
               final diff = e.$2;
               final color = diff > 0 ? AppColors.lend : AppColors.borrow;
-              return Card(
+              return SurfaceCard(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: PersonAvatar(person: person, radius: 20),

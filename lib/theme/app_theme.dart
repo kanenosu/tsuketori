@@ -14,7 +14,8 @@ class AppTheme {
   static ThemeData dark() => _build(Brightness.dark);
 
   static const _radius = 8.0;
-  static const _font = 'Hiragino Sans';
+  static const String? _font = null;
+  static const _fallback = ['Hiragino Sans', 'Noto Sans CJK JP'];
 
   static ThemeData _build(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
@@ -37,11 +38,9 @@ class AppTheme {
     );
 
     final base = ThemeData(brightness: brightness, useMaterial3: true);
-    final textTheme = base.textTheme.apply(
-      bodyColor: text,
-      displayColor: text,
-      fontFamily: _font,
-    );
+    final textTheme = base.textTheme
+        .apply(bodyColor: text, displayColor: text, fontFamily: _font)
+        .apply(fontFamilyFallback: _fallback);
 
     const buttonText = TextStyle(
       fontFamily: _font,
@@ -53,7 +52,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
-      fontFamily: _font,
+      fontFamilyFallback: _fallback,
       textTheme: textTheme,
       hintColor: isDark ? const Color(0xFF8A8A8A) : AppColors.subtextGray,
       splashFactory: NoSplash.splashFactory,

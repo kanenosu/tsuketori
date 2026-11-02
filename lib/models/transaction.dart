@@ -81,6 +81,12 @@ class TransactionModel {
     return TransactionStatus.unpaid;
   }
 
+  /// 返済済み・取り消しなど、もう対応不要になった取引か。
+  bool get isFinished {
+    final s = effectiveStatus();
+    return s == TransactionStatus.settled || s == TransactionStatus.cancelled;
+  }
+
   TransactionModel copyWith({
     String? personId,
     TransactionType? type,

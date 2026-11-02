@@ -7,6 +7,7 @@ import '../../state/app_state.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/yen_amount.dart';
 import '../transaction/new_transaction_screen.dart';
+import '../../widgets/surface_card.dart';
 
 /// 返済登録画面（要件 6.3.4 / 6.4）。
 class RepaymentScreen extends StatefulWidget {
@@ -99,7 +100,7 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          Card(
+          SurfaceCard(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(

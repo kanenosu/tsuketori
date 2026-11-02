@@ -9,6 +9,7 @@ import '../../widgets/person_avatar.dart';
 import '../../widgets/transaction_tile.dart';
 import '../transaction/transaction_detail_screen.dart';
 import 'person_edit_screen.dart';
+import '../../widgets/surface_card.dart';
 
 /// 相手詳細画面（要件 6.5.2 / 6.5.4）。
 class PersonDetailScreen extends StatelessWidget {
@@ -58,7 +59,7 @@ class PersonDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          Card(
+          SurfaceCard(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -111,7 +112,7 @@ class PersonDetailScreen extends StatelessWidget {
           ),
           if (offsetable > 0) ...[
             const SizedBox(height: 12),
-            Card(
+            SurfaceCard(
               color: AppColors.primary.withValues(alpha: 0.08),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -137,7 +138,7 @@ class PersonDetailScreen extends StatelessWidget {
           ],
           if (person.memo != null && person.memo!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Card(
+            SurfaceCard(
               child: ListTile(
                 leading: const Icon(Icons.sticky_note_2_outlined),
                 title: Text(person.memo!),

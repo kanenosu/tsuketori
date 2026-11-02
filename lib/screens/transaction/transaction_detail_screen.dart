@@ -11,6 +11,7 @@ import '../../widgets/status_badge.dart';
 import '../receipt/receipt_preview_screen.dart';
 import '../repayment/repayment_screen.dart';
 import 'edit_transaction_screen.dart';
+import '../../widgets/surface_card.dart';
 
 /// 取引詳細画面（要件 6.3・モックアップ④準拠）。
 class TransactionDetailScreen extends StatelessWidget {
@@ -138,7 +139,7 @@ class TransactionDetailScreen extends StatelessWidget {
           ),
           if (tx.repaidAmount > 0 && canRepay) ...[
             const SizedBox(height: 20),
-            Card(
+            SurfaceCard(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -168,7 +169,7 @@ class TransactionDetailScreen extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 24),
-          Card(
+          SurfaceCard(
             child: Column(
               children: [
                 _infoRow(context, '日付', value: Formatters.longDate(tx.date)),
@@ -474,7 +475,7 @@ class _RepaymentTile extends StatelessWidget {
       if (r.memo != null && r.memo!.isNotEmpty) r.memo!,
     ].join(' ・ ');
 
-    return Card(
+    return SurfaceCard(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: const CircleAvatar(

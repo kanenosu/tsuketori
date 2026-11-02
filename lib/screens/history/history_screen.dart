@@ -4,14 +4,16 @@ import 'package:provider/provider.dart';
 import '../../models/transaction.dart';
 import '../../models/transaction_type.dart';
 import '../../state/app_state.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/status_style.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/person_avatar.dart';
 import '../../widgets/pill_tabs.dart';
+import '../../widgets/transaction_tile.dart';
 import '../transaction/transaction_detail_screen.dart';
 import 'filter_screen.dart';
 import 'history_filter.dart';
+import '../../widgets/surface_card.dart';
 
 /// 履歴画面（要件 6.6・モックアップ⑥準拠）。
 class HistoryScreen extends StatefulWidget {
@@ -21,13 +23,23 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends State<HistoryScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(
+    length: 2,
+    vsync: this,
+  );
+
   HistoryQuery _query = const HistoryQuery();
+
+  /// false=返済中 / true=完了（返済済み・取り消し）。
+  bool _showFinished = false;
   final _searchController = TextEditingController();
 
   @override
   void dispose() {
     _searchController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -48,7 +60,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     String nameOf(String id) => appState.person(id)?.name ?? '';
-    final results = _query.apply(appState.transactions, nameOf);
+    final all = _query.apply(appState.transactions, nameOf);
+    final finishedCount = all.where((t) => t.isFinished).length;
+    final results = all.where((t) => t.isFinished == _showFinished).toList();
     final grouped = _groupByMonth(results);
 
     return Scaffold(
@@ -68,8 +82,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       body: Column(
         children: [
+          // Tab（Regular）：選択 #3895FF＋下線2px、背景白＋Low-Shadow。
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              boxShadow: AppColors.lowShadow,
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicatorWeight: 2,
+              onTap: (i) => setState(() => _showFinished = i == 1),
+              tabs: [
+                Tab(text: '返済中 ${all.length - finishedCount}'),
+                Tab(text: '完了 $finishedCount'),
+              ],
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Column(
               children: [
                 SearchBar(
@@ -120,10 +151,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Expanded(
             child:
                 results.isEmpty
-                    ? const EmptyState(
-                      icon: Icons.search_off,
-                      title: '該当する取引がありません',
-                      message: 'フィルターの条件を変えてみてください。',
+                    ? EmptyState(
+                      icon:
+                          _showFinished
+                              ? Icons.check_circle_outline
+                              : Icons.search_off,
+                      title: _showFinished ? '完了した取引はありません' : '該当する取引がありません',
+                      message:
+                          _showFinished
+                              ? '返済済み・取り消しの取引がここに入ります'
+                              : 'フィルターの条件を変えてみてください',
                     )
                     : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -140,12 +177,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               ),
                             ),
                           ),
-                          Card(
+                          SurfaceCard(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
+                              padding: EdgeInsets.zero,
                               child: Column(
                                 children: [
                                   for (
@@ -153,8 +187,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     i < entry.value.length;
                                     i++
                                   ) ...[
-                                    if (i > 0) const Divider(height: 1),
-                                    _HistoryRow(transaction: entry.value[i]),
+                                    if (i > 0)
+                                      const Divider(height: 1, indent: 68),
+                                    TransactionTile(
+                                      transaction: entry.value[i],
+                                      person: appState.person(
+                                        entry.value[i].personId,
+                                      ),
+                                      onTap:
+                                          () => Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (_) =>
+                                                      TransactionDetailScreen(
+                                                        transactionId:
+                                                            entry.value[i].id,
+                                                      ),
+                                            ),
+                                          ),
+                                    ),
                                   ],
                                 ],
                               ),
@@ -177,78 +228,5 @@ class _HistoryScreenState extends State<HistoryScreen> {
       map.putIfAbsent(Formatters.month(tx.date), () => []).add(tx);
     }
     return map;
-  }
-}
-
-class _HistoryRow extends StatelessWidget {
-  const _HistoryRow({required this.transaction});
-
-  final TransactionModel transaction;
-
-  @override
-  Widget build(BuildContext context) {
-    final appState = context.read<AppState>();
-    final tx = transaction;
-    final person = appState.person(tx.personId);
-    final typeColor = StatusStyle.typeColor(tx.type);
-    final isLend = tx.type == TransactionType.lend;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => TransactionDetailScreen(transactionId: tx.id),
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 40,
-              child: Text(
-                Formatters.dateShort(tx.date),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).hintColor,
-                ),
-              ),
-            ),
-            PersonAvatar(person: person, radius: 16),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    person?.name ?? '(不明な相手)',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    tx.type.label,
-                    style: TextStyle(fontSize: 11, color: typeColor),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              '${isLend ? '+' : '-'}${Formatters.yenSuffix(tx.amount)}',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: typeColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

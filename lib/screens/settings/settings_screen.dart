@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 
 import '../../state/app_state.dart';
 import '../../state/settings_state.dart';
+import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/surface_card.dart';
 
 /// 設定画面（要件 6.9・モックアップ⑨準拠）。
 class SettingsScreen extends StatelessWidget {
@@ -43,13 +45,13 @@ class SettingsScreen extends StatelessWidget {
             _Row(
               icon: Icons.backup_outlined,
               title: 'データのバックアップ',
-              subtitle: '暗号化されていないJSONファイルを書き出します',
+              subtitle: 'JSONファイルに書き出します',
               onTap: () => _exportBackup(context),
             ),
             _Row(
               icon: Icons.restore,
               title: 'データの復元',
-              subtitle: '内容を検証・確認してから台帳を置き換えます',
+              subtitle: '書き出したファイルから戻します',
               onTap: () => _importBackup(context),
             ),
           ]),
@@ -96,11 +98,11 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _group(BuildContext context, List<_Row> rows) {
-    return Card(
+    return SurfaceCard(
       child: Column(
         children: [
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) const Divider(height: 1, indent: 56),
+            if (i > 0) const Divider(height: 1, indent: 68),
             rows[i],
           ],
         ],
@@ -265,9 +267,29 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: subtitle == null ? null : Text(subtitle!),
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 20, color: AppColors.primary),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      ),
+      subtitle:
+          subtitle == null
+              ? null
+              : Text(
+                subtitle!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.subtextGray,
+                ),
+              ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -280,7 +302,11 @@ class _Row extends StatelessWidget {
               ),
             ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 20,
+            color: AppColors.placeholder,
+          ),
         ],
       ),
       onTap: onTap,
