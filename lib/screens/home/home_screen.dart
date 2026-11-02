@@ -358,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16),
               color: Colors.white.withValues(alpha: 0.35),
             ),
-            _miniStat('返す予定', borrowed, const Color(0xFFFFB4DD)),
+            _miniStat('返す予定', borrowed, const Color(0xFFFFE39A)),
           ],
         ),
       ],
@@ -464,7 +464,7 @@ class _RatioBar extends StatelessWidget {
             if (borrowedFlex > 0)
               Expanded(
                 flex: borrowedFlex,
-                child: const ColoredBox(color: Color(0xFFFFB4DD)),
+                child: const ColoredBox(color: Color(0xFFFFE39A)),
               ),
           ],
         ),
